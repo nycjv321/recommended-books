@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>My Recommended Books</title>
+        <title>{{siteTitle}}</title>
         <link rel="stylesheet" href="styles-minimalist.css" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -14,8 +14,8 @@
     </head>
     <body>
         <header class="header">
-            <h1>My Reads</h1>
-            <p class="subtitle">A curated collection</p>
+            <h1>{{siteTitle}}</h1>
+            <p class="subtitle">{{siteSubtitle}}</p>
             <button
                 class="theme-toggle"
                 id="theme-toggle"
@@ -93,7 +93,7 @@
         </div>
 
         <footer class="footer">
-            <p>Books I love and books to explore</p>
+            <p>{{footerText}}</p>
         </footer>
 
         <script src="app.js"></script>

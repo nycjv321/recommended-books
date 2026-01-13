@@ -98,9 +98,10 @@ https://covers.openlibrary.org/b/isbn/{ISBN}-L.jpg
 
 ```
 reccommended-books/
-├── index.html              # Source HTML
+├── index.html              # Source HTML (with placeholders)
 ├── styles-minimalist.css   # Source CSS
 ├── app.js                  # Source JS
+├── config.json             # Site configuration (titles, labels)
 ├── build-index.js          # Build script
 ├── books/                  # Your real book data
 │   ├── top-5-reads/
@@ -114,6 +115,7 @@ reccommended-books/
     ├── index.html
     ├── styles-minimalist.css
     ├── app.js
+    ├── config.json
     └── books/
         ├── index.json
         └── [book files]
@@ -136,6 +138,25 @@ Works with any static hosting:
 
 ## Customization
 
+### Site Text
+
+Edit `config.json` to customize titles and labels:
+
+```json
+{
+    "siteTitle": "My Reads",
+    "siteSubtitle": "A curated collection",
+    "footerText": "Books I love and books to explore",
+    "shelves": {
+        "top5": "Top 5 Reads",
+        "good": "Good Reads",
+        "current": "Current and Future Reads"
+    }
+}
+```
+
+Then rebuild with `node build-index.js`.
+
 ### Colors
 
 Edit CSS variables in `styles-minimalist.css`:
@@ -149,18 +170,6 @@ Edit CSS variables in `styles-minimalist.css`:
     --text-secondary: #57534E;   /* Secondary text */
     --text-muted: #A8A29E;       /* Muted text */
 }
-```
-
-### Shelf Names
-
-Edit `app.js`:
-
-```javascript
-const SHELF_LABELS = {
-    top5: 'Top 5 Reads',
-    good: 'Good Reads',
-    current: 'Current and Future Reads'
-};
 ```
 
 ## License

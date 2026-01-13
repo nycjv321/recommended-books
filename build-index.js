@@ -16,15 +16,20 @@ const useSampleData = process.argv.includes('--sample');
 
 const ROOT_DIR = __dirname;
 const DIST_DIR = path.join(ROOT_DIR, 'dist');
+const CONFIG_FILE = path.join(ROOT_DIR, 'config.json');
 const SOURCE_DIR = useSampleData
     ? path.join(ROOT_DIR, 'books-sample')
     : path.join(ROOT_DIR, 'books');
 
 // Static files to copy to dist/
 const STATIC_FILES = [
-    'index.html',
     'styles-minimalist.css',
     'app.js'
+];
+
+// Files that need placeholder replacement
+const TEMPLATE_FILES = [
+    'index.html'
 ];
 
 // Shelf folders to scan for books
@@ -45,6 +50,21 @@ function copyFile(src, dest) {
     fs.copyFileSync(src, dest);
 }
 
+function loadConfig() {
+    if (!fs.existsSync(CONFIG_FILE)) {
+        console.error('Error: config.json not found');
+        process.exit(1);
+    }
+    return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
+}
+
+function processTemplate(content, config) {
+    return content
+        .replace(/\{\{siteTitle\}\}/g, config.siteTitle)
+        .replace(/\{\{siteSubtitle\}\}/g, config.siteSubtitle)
+        .replace(/\{\{footerText\}\}/g, config.footerText);
+}
+
 function cleanDist() {
     if (fs.existsSync(DIST_DIR)) {
         fs.rmSync(DIST_DIR, { recursive: true });
@@ -52,7 +72,8 @@ function cleanDist() {
     ensureDir(DIST_DIR);
 }
 
-function copyStaticFiles() {
+function copyStaticFiles(config) {
+    // Copy static files (no processing)
     for (const file of STATIC_FILES) {
         const srcPath = path.join(ROOT_DIR, file);
         const destPath = path.join(DIST_DIR, file);
@@ -62,6 +83,22 @@ function copyStaticFiles() {
             console.warn(`Warning: Static file not found: ${file}`);
         }
     }
+
+    // Process template files (placeholder replacement)
+    for (const file of TEMPLATE_FILES) {
+        const srcPath = path.join(ROOT_DIR, file);
+        const destPath = path.join(DIST_DIR, file);
+        if (fs.existsSync(srcPath)) {
+            const content = fs.readFileSync(srcPath, 'utf-8');
+            const processed = processTemplate(content, config);
+            fs.writeFileSync(destPath, processed);
+        } else {
+            console.warn(`Warning: Template file not found: ${file}`);
+        }
+    }
+
+    // Copy config.json to dist/ for app.js to use
+    copyFile(CONFIG_FILE, path.join(DIST_DIR, 'config.json'));
 }
 
 function buildBooks() {
@@ -101,13 +138,18 @@ function buildBooks() {
 function build() {
     console.log('Building site...\n');
 
+    // Load config
+    const config = loadConfig();
+    console.log('Loaded config.json');
+
     // Clean and create dist/
     cleanDist();
     console.log('Created dist/');
 
-    // Copy static files
-    copyStaticFiles();
-    console.log(`Copied static files: ${STATIC_FILES.join(', ')}`);
+    // Copy static files and process templates
+    copyStaticFiles(config);
+    console.log(`Copied files: ${[...STATIC_FILES, ...TEMPLATE_FILES].join(', ')}`);
+    console.log('Processed templates with config values');
 
     // Build books
     const bookFiles = buildBooks();

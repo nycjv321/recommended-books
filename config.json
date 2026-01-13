@@ -1,0 +1,10 @@
+{
+  "siteTitle": "My Reads",
+  "siteSubtitle": "Books that shaped my career",
+  "footerText": "Books I love and books to explore",
+  "shelves": {
+    "top5": "Top 5 Reads",
+    "good": "Good Reads",
+    "current": "Current and Future Reads"
+  }
+}

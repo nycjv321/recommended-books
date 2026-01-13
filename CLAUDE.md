@@ -12,10 +12,11 @@ This is a static book recommendation website built with HTML, CSS, and JavaScrip
 
 | File | Purpose |
 |------|---------|
-| `index.html` | Source HTML structure, modal template |
+| `index.html` | Source HTML with `{{placeholder}}` syntax |
 | `styles-minimalist.css` | Source CSS (active theme) |
 | `styles.css` | Alternative warm bookshelf theme (unused) |
 | `app.js` | Source JS - book loading, rendering, modal logic |
+| `config.json` | Site configuration (titles, labels) |
 | `build-index.js` | Build script - generates dist/ folder |
 | `books/` | Your real book data (source) |
 | `books-sample/` | Sample book data for testing/demos |
@@ -29,20 +30,22 @@ This is a static book recommendation website built with HTML, CSS, and JavaScrip
 3. Shelf is derived from folder path (e.g., `good-reads/` → `good` shelf)
 4. Books are grouped by shelf and rendered with section headers
 
-### Shelf Configuration (app.js)
-```javascript
-const SHELF_ORDER = ['top5', 'current', 'good'];
-const SHELF_LABELS = {
-    top5: 'Top 5 Reads',
-    good: 'Good Reads',
-    current: 'Current and Future Reads'
-};
-const SHELF_FOLDERS = {
-    'top-5-reads': 'top5',
-    'good-reads': 'good',
-    'current-and-future-reads': 'current'
-};
+### Site Configuration (config.json)
+```json
+{
+    "siteTitle": "My Reads",
+    "siteSubtitle": "A curated collection",
+    "footerText": "Books I love and books to explore",
+    "shelves": {
+        "top5": "Top 5 Reads",
+        "good": "Good Reads",
+        "current": "Current and Future Reads"
+    }
+}
 ```
+
+Build script replaces `{{placeholders}}` in HTML with config values.
+App.js fetches config.json at runtime for shelf labels.
 
 ### Folder Structure
 ```
@@ -57,9 +60,10 @@ books-sample/                    # Sample data for testing/demos
 └── current-and-future-reads/*.json
 
 dist/                            # Built output (gitignored)
-├── index.html
+├── index.html                   # Placeholders replaced with config values
 ├── styles-minimalist.css
 ├── app.js
+├── config.json
 └── books/
     ├── index.json               # Auto-generated
     └── [book JSON files]
@@ -83,8 +87,8 @@ The build script:
 - Copies book JSON files to `dist/books/`
 - Generates `dist/books/index.json`
 
-### Change shelf order or names
-Edit `SHELF_ORDER` and `SHELF_LABELS` in `app.js`
+### Change site text or shelf names
+Edit `config.json` and rebuild
 
 ### Adjust "Show More" threshold
 Change `INITIAL_BOOKS_TO_SHOW` in `app.js` (default: 12)

@@ -9,10 +9,11 @@
   // Configuration
   const BOOKS_PER_SHELF = 6;
   const BOOKS_INDEX_PATH = "books/index.json";
+  const CONFIG_PATH = "config.json";
 
   // Shelf configuration
   const SHELF_ORDER = ["top5", "current", "good"];
-  const SHELF_LABELS = {
+  let SHELF_LABELS = {
     top5: "Top 5 Reads",
     good: "Good Reads",
     current: "Current and Future Reads",
@@ -23,6 +24,25 @@
     "current-and-future-reads": "current",
   };
   const INITIAL_BOOKS_TO_SHOW = 12;
+
+  /**
+   * Load configuration from config.json
+   */
+  async function loadConfig() {
+    try {
+      const response = await fetch(CONFIG_PATH);
+      if (!response.ok) {
+        console.warn("Could not load config.json, using defaults");
+        return;
+      }
+      const config = await response.json();
+      if (config.shelves) {
+        SHELF_LABELS = config.shelves;
+      }
+    } catch (error) {
+      console.warn("Error loading config:", error);
+    }
+  }
 
   // DOM Elements
   const bookshelf = document.getElementById("bookshelf");
@@ -51,6 +71,9 @@
     showLoading();
 
     try {
+      // Load config first (for shelf labels)
+      await loadConfig();
+
       const books = await loadBooks();
 
       if (books.length === 0) {
