@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Recommended Books</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header class="header">
+        <h1>My Library</h1>
+        <p class="subtitle">Books I've read and recommend</p>
+    </header>
+
+    <main class="bookshelf-container">
+        <div class="bookshelf" id="bookshelf">
+            <!-- Books will be dynamically inserted here -->
+        </div>
+    </main>
+
+    <!-- Book Details Overlay -->
+    <div class="overlay" id="overlay" aria-hidden="true">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+            <button class="modal-close" id="modal-close" aria-label="Close">&times;</button>
+            <div class="modal-content">
+                <div class="modal-cover">
+                    <img id="modal-cover-img" src="" alt="">
+                </div>
+                <div class="modal-details">
+                    <h2 id="modal-title" class="modal-title"></h2>
+                    <p id="modal-author" class="modal-author"></p>
+
+                    <div class="modal-meta">
+                        <div class="meta-item" id="meta-category">
+                            <span class="meta-label">Category</span>
+                            <span class="meta-value"></span>
+                        </div>
+                        <div class="meta-item" id="meta-pages">
+                            <span class="meta-label">Pages</span>
+                            <span class="meta-value"></span>
+                        </div>
+                        <div class="meta-item" id="meta-published">
+                            <span class="meta-label">Published</span>
+                            <span class="meta-value"></span>
+                        </div>
+                        <div class="meta-item" id="meta-read" style="display: none;">
+                            <span class="meta-label">Read</span>
+                            <span class="meta-value"></span>
+                        </div>
+                    </div>
+
+                    <div class="modal-notes" id="modal-notes">
+                        <h3>My Notes</h3>
+                        <p id="modal-notes-text"></p>
+                    </div>
+
+                    <a id="modal-link" class="modal-button" href="" target="_blank" rel="noopener noreferrer">
+                        View Book
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>A personal collection of recommended reads</p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>

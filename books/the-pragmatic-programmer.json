@@ -1,0 +1,11 @@
+{
+    "title": "The Pragmatic Programmer",
+    "author": "David Thomas & Andrew Hunt",
+    "category": "Programming",
+    "publishDate": "2019-09-13",
+    "pages": 352,
+    "cover": "https://covers.openlibrary.org/b/isbn/9780135957059-L.jpg",
+    "notes": "A timeless classic for software developers. The 20th anniversary edition updates the concepts for modern development while keeping the core wisdom intact.\n\nEvery developer should read this - it shaped how I think about code craftsmanship and professional development.",
+    "link": "https://pragprog.com/titles/tpp20/the-pragmatic-programmer-20th-anniversary-edition/",
+    "clickBehavior": "redirect"
+}

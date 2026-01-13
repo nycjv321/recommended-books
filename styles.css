@@ -1,0 +1,530 @@
+/* ===== CSS Variables ===== */
+:root {
+    /* Wood tones */
+    --wood-dark: #5D3A1A;
+    --wood-medium: #8B5A2B;
+    --wood-light: #A0522D;
+    --wood-highlight: #CD853F;
+    --wood-shadow: #3E2510;
+
+    /* Accent colors */
+    --cream: #FDF5E6;
+    --gold: #DAA520;
+    --warm-white: #FAF0E6;
+
+    /* Text colors */
+    --text-primary: #2C1810;
+    --text-secondary: #5D4037;
+    --text-light: #FAF0E6;
+
+    /* Shadows */
+    --shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.15);
+    --shadow-medium: 0 4px 16px rgba(0, 0, 0, 0.2);
+    --shadow-deep: 0 8px 32px rgba(0, 0, 0, 0.3);
+
+    /* Transitions */
+    --transition-fast: 0.15s ease;
+    --transition-medium: 0.3s ease;
+}
+
+/* ===== Reset & Base ===== */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    font-size: 16px;
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: 'Lora', Georgia, serif;
+    background: linear-gradient(135deg, #2C1810 0%, #4A3020 50%, #2C1810 100%);
+    min-height: 100vh;
+    color: var(--text-primary);
+    line-height: 1.6;
+}
+
+/* ===== Header ===== */
+.header {
+    text-align: center;
+    padding: 3rem 1rem 2rem;
+    background: linear-gradient(180deg, rgba(0,0,0,0.4) 0%, transparent 100%);
+}
+
+.header h1 {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 700;
+    color: var(--gold);
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+}
+
+.subtitle {
+    font-size: 1.1rem;
+    color: var(--cream);
+    font-style: italic;
+    opacity: 0.9;
+}
+
+/* ===== Bookshelf Container ===== */
+.bookshelf-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem 1rem 4rem;
+}
+
+/* ===== Bookshelf ===== */
+.bookshelf {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+/* Individual Shelf Row */
+.shelf-row {
+    position: relative;
+    padding: 1.5rem 2rem 0;
+    min-height: 280px;
+}
+
+/* Shelf surface (the wooden plank) */
+.shelf-row::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 25px;
+    background: linear-gradient(180deg,
+        var(--wood-highlight) 0%,
+        var(--wood-medium) 20%,
+        var(--wood-dark) 80%,
+        var(--wood-shadow) 100%
+    );
+    border-radius: 0 0 4px 4px;
+    box-shadow:
+        0 4px 8px rgba(0, 0, 0, 0.4),
+        inset 0 2px 4px rgba(255, 255, 255, 0.1);
+}
+
+/* Wood grain texture overlay */
+.shelf-row::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 25px;
+    background-image: repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 50px,
+        rgba(0, 0, 0, 0.03) 50px,
+        rgba(0, 0, 0, 0.03) 100px
+    );
+    z-index: 1;
+    pointer-events: none;
+    border-radius: 0 0 4px 4px;
+}
+
+/* Shelf back panel */
+.shelf-row {
+    background: linear-gradient(180deg,
+        var(--wood-shadow) 0%,
+        var(--wood-dark) 100%
+    );
+    border-radius: 4px;
+    box-shadow:
+        inset 0 0 30px rgba(0, 0, 0, 0.3),
+        0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+/* Books container within shelf */
+.books-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: flex-end;
+    justify-content: flex-start;
+    padding-bottom: 1.5rem;
+    min-height: 200px;
+}
+
+/* ===== Individual Book ===== */
+.book {
+    position: relative;
+    cursor: pointer;
+    transition: transform var(--transition-medium), box-shadow var(--transition-medium);
+    transform-origin: bottom center;
+}
+
+.book:hover {
+    transform: translateY(-15px) scale(1.05);
+    z-index: 10;
+}
+
+.book:focus {
+    outline: 3px solid var(--gold);
+    outline-offset: 4px;
+}
+
+.book-cover {
+    width: 120px;
+    height: 180px;
+    object-fit: cover;
+    border-radius: 2px 6px 6px 2px;
+    box-shadow:
+        -4px 0 8px rgba(0, 0, 0, 0.2),
+        4px 4px 12px rgba(0, 0, 0, 0.4),
+        inset -2px 0 4px rgba(0, 0, 0, 0.1);
+    transition: box-shadow var(--transition-medium);
+}
+
+.book:hover .book-cover {
+    box-shadow:
+        -6px 0 12px rgba(0, 0, 0, 0.3),
+        8px 8px 20px rgba(0, 0, 0, 0.5),
+        inset -2px 0 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Book spine effect */
+.book::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 8px;
+    background: linear-gradient(90deg,
+        rgba(0, 0, 0, 0.3) 0%,
+        rgba(0, 0, 0, 0.1) 50%,
+        transparent 100%
+    );
+    border-radius: 2px 0 0 2px;
+    z-index: 1;
+}
+
+/* ===== Overlay & Modal ===== */
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity var(--transition-medium), visibility var(--transition-medium);
+    backdrop-filter: blur(4px);
+}
+
+.overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal {
+    background: var(--cream);
+    border-radius: 12px;
+    max-width: 800px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: var(--shadow-deep);
+    transform: translateY(20px) scale(0.95);
+    transition: transform var(--transition-medium);
+}
+
+.overlay.active .modal {
+    transform: translateY(0) scale(1);
+}
+
+.modal-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: none;
+    border: none;
+    font-size: 2rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background var(--transition-fast), color var(--transition-fast);
+    z-index: 10;
+}
+
+.modal-close:hover {
+    background: rgba(0, 0, 0, 0.1);
+    color: var(--text-primary);
+}
+
+.modal-content {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 2rem;
+    padding: 2rem;
+}
+
+.modal-cover {
+    flex-shrink: 0;
+}
+
+.modal-cover img {
+    width: 200px;
+    height: 300px;
+    object-fit: cover;
+    border-radius: 4px;
+    box-shadow: var(--shadow-medium);
+}
+
+.modal-details {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.modal-title {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.3;
+    padding-right: 2rem;
+}
+
+.modal-author {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.modal-meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 1rem;
+    padding: 1rem 0;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.meta-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.meta-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.meta-value {
+    font-size: 1rem;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.modal-notes {
+    flex-grow: 1;
+}
+
+.modal-notes h3 {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.modal-notes p {
+    color: var(--text-secondary);
+    line-height: 1.7;
+    white-space: pre-wrap;
+}
+
+.modal-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.875rem 2rem;
+    background: linear-gradient(135deg, var(--wood-medium) 0%, var(--wood-dark) 100%);
+    color: var(--text-light);
+    text-decoration: none;
+    font-family: 'Lora', Georgia, serif;
+    font-size: 1rem;
+    font-weight: 500;
+    border-radius: 8px;
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+    box-shadow: var(--shadow-soft);
+    margin-top: auto;
+    align-self: flex-start;
+}
+
+.modal-button:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-medium);
+}
+
+/* ===== Footer ===== */
+.footer {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: var(--cream);
+    opacity: 0.7;
+    font-size: 0.9rem;
+}
+
+/* ===== Loading State ===== */
+.loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    color: var(--cream);
+    font-size: 1.2rem;
+}
+
+.loading::after {
+    content: '';
+    width: 24px;
+    height: 24px;
+    margin-left: 1rem;
+    border: 3px solid var(--cream);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ===== Empty State ===== */
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--cream);
+}
+
+.empty-state h2 {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.empty-state p {
+    opacity: 0.8;
+}
+
+/* ===== Responsive Design ===== */
+@media (max-width: 768px) {
+    .shelf-row {
+        padding: 1rem 1rem 0;
+        min-height: 220px;
+    }
+
+    .books-container {
+        justify-content: center;
+    }
+
+    .book-cover {
+        width: 100px;
+        height: 150px;
+    }
+
+    .modal-content {
+        grid-template-columns: 1fr;
+        text-align: center;
+    }
+
+    .modal-cover {
+        display: flex;
+        justify-content: center;
+    }
+
+    .modal-cover img {
+        width: 150px;
+        height: 225px;
+    }
+
+    .modal-title {
+        padding-right: 0;
+    }
+
+    .modal-button {
+        align-self: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .header {
+        padding: 2rem 1rem 1.5rem;
+    }
+
+    .book-cover {
+        width: 80px;
+        height: 120px;
+    }
+
+    .books-container {
+        gap: 0.75rem;
+    }
+
+    .modal {
+        border-radius: 8px;
+    }
+
+    .modal-content {
+        padding: 1.5rem;
+        gap: 1.5rem;
+    }
+
+    .modal-title {
+        font-size: 1.4rem;
+    }
+}
+
+/* ===== Accessibility ===== */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Focus visible for keyboard navigation */
+.book:focus-visible {
+    outline: 3px solid var(--gold);
+    outline-offset: 4px;
+}
+
+.modal-close:focus-visible {
+    outline: 2px solid var(--wood-dark);
+    outline-offset: 2px;
+}
+
+.modal-button:focus-visible {
+    outline: 2px solid var(--wood-dark);
+    outline-offset: 2px;
+}
