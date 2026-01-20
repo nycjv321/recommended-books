@@ -1,0 +1,12 @@
+{
+  "name": "@recommended-books/site",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Static book recommendation website",
+  "scripts": {
+    "build": "node scripts/build-index.js",
+    "build:sample": "node scripts/build-index.js --sample",
+    "serve": "npx serve dist"
+  },
+  "license": "MIT"
+}

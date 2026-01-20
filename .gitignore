@@ -1,5 +1,11 @@
+# Dependencies
+node_modules/
+
 # Build output
-dist/
+packages/site/dist/
+packages/admin/dist/
+packages/admin/dist-electron/
+packages/admin/out/
 
 # OS files
 .DS_Store
@@ -8,3 +14,14 @@ dist/
 *.swp
 *.swo
 *~
+
+# Environment files
+.env
+.env.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# TypeScript
+*.tsbuildinfo

@@ -1,0 +1,22 @@
+{
+  "name": "recommended-books",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Book recommendation website with admin UI",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @recommended-books/admin",
+    "build": "npm run build -w @recommended-books/admin",
+    "build:site": "npm run build -w @recommended-books/site",
+    "package": "npm run package -w @recommended-books/admin",
+    "preview": "npm run preview -w @recommended-books/admin"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nycjv321/recommended-books.git"
+  },
+  "author": "",
+  "license": "MIT"
+}
