@@ -4,6 +4,10 @@
 
 A minimalist static website to showcase book recommendations. No backend required - just HTML, CSS, and JavaScript.
 
+## Example
+
+See [Javier's Recommended Books](https://github.com/nycjv321/javiers-reccomended-books) for a live example of this template in action.
+
 ## Features
 
 - Clean, minimalist design with soft lavender theme
