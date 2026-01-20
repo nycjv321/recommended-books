@@ -1,6 +1,8 @@
 # My Reads
 
-A minimalist static website to showcase your book recommendations. No backend required - just HTML, CSS, and JavaScript.
+[![Built with Claude](https://img.shields.io/badge/Built%20with-Claude-blueviolet)](https://claude.ai)
+
+A minimalist static website to showcase book recommendations. No backend required - just HTML, CSS, and JavaScript.
 
 ## Features
 
@@ -17,8 +19,8 @@ A minimalist static website to showcase your book recommendations. No backend re
 ### 1. Build and run locally
 
 ```bash
-# Build the site (with sample data for testing)
-node build-index.js --sample
+# Build the site
+node scripts/build-index.js
 
 # Serve the built site
 npx serve dist
@@ -29,6 +31,13 @@ cd dist && python -m http.server 8080
 Then open http://localhost:8080
 
 ### 2. Add a book
+
+**Option A: Interactive CLI (recommended)**
+```bash
+node scripts/add-book.js         # Search Open Library or enter manually
+```
+
+**Option B: Manual JSON file**
 
 Create a JSON file in the appropriate shelf folder:
 
@@ -60,11 +69,7 @@ Example book file (`books/good-reads/my-book.json`):
 After adding or removing books, rebuild:
 
 ```bash
-# Build with your real data
-node build-index.js
-
-# Or build with sample data for testing/demo
-node build-index.js --sample
+node scripts/build-index.js
 ```
 
 The build script:
@@ -83,6 +88,7 @@ The build script:
 | `publishDate` | string | No | ISO date (YYYY-MM-DD) |
 | `pages` | number | No | Page count |
 | `cover` | string | Yes | URL to cover image |
+| `coverLocal` | string | No | Local path to downloaded cover (e.g., `covers/my-book.jpg`) |
 | `notes` | string | No | Your personal notes |
 | `link` | string | No | External URL (Amazon, publisher, etc.) |
 | `clickBehavior` | string | No | `"overlay"` (default) or `"redirect"` |
@@ -96,16 +102,38 @@ https://covers.openlibrary.org/b/isbn/{ISBN}-L.jpg
 
 If a cover image fails to load, a placeholder with the book title is shown automatically.
 
+**Download covers for offline use:**
+```bash
+node scripts/download-covers.js          # Interactive mode
+node scripts/download-covers.js --all    # Download all without prompting
+node scripts/download-covers.js --check  # Report only (no downloads)
+```
+
+This downloads external cover images to `books/covers/` and adds a `coverLocal` field to each book's JSON. Local covers take precedence over external URLs.
+
+### Moving Books Between Shelves
+
+```bash
+node scripts/add-book.js --move
+```
+
+Lists all books and lets you move them between shelves interactively.
+
 ## Project Structure
 
 ```
-reccommended-books/
+recommended-books/
 ├── index.html              # Source HTML (with placeholders)
 ├── styles-minimalist.css   # Source CSS
 ├── app.js                  # Source JS
 ├── config.json             # Site configuration (titles, labels)
-├── build-index.js          # Build script
+├── favicon.svg             # Book-shaped favicon
+├── scripts/                # CLI tools
+│   ├── build-index.js      # Build script
+│   ├── add-book.js         # Interactive CLI to add/move books
+│   └── download-covers.js  # Download covers for offline use
 ├── books/                  # Your real book data
+│   ├── covers/             # Downloaded cover images (optional)
 │   ├── top-5-reads/
 │   ├── good-reads/
 │   └── current-and-future-reads/
@@ -117,18 +145,65 @@ reccommended-books/
     ├── index.html
     ├── styles-minimalist.css
     ├── app.js
+    ├── favicon.svg
     ├── config.json
     └── books/
+        ├── covers/
         ├── index.json
         └── [book files]
 ```
 
 ## Deployment
 
+### Automatic (GitHub Actions + S3)
+
+This repo includes a GitHub Actions workflow that automatically deploys to S3 on push to `main`.
+
+**Required GitHub Secrets:**
+
+| Secret | Description |
+|--------|-------------|
+| `AWS_ACCESS_KEY_ID` | IAM user access key |
+| `AWS_SECRET_ACCESS_KEY` | IAM user secret key |
+| `AWS_REGION` | AWS region (e.g., `us-east-1`) |
+| `S3_BUCKET_NAME` | Your S3 bucket name |
+
+**Setup:**
+
+1. **Create an S3 bucket** with static website hosting enabled
+
+2. **Create an IAM user** with the following policy (replace `YOUR-BUCKET-NAME`):
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [{
+       "Effect": "Allow",
+       "Action": [
+         "s3:PutObject",
+         "s3:DeleteObject",
+         "s3:ListBucket"
+       ],
+       "Resource": [
+         "arn:aws:s3:::YOUR-BUCKET-NAME",
+         "arn:aws:s3:::YOUR-BUCKET-NAME/*"
+       ]
+     }]
+   }
+   ```
+
+3. **Add GitHub Secrets** to your repository:
+   - Go to your repo on GitHub
+   - Navigate to Settings → Secrets and variables → Actions
+   - Click "New repository secret" for each secret listed above
+
+4. **Push to `main`** - the workflow runs automatically
+
+### Manual
+
 Build first, then deploy the `dist/` folder:
 
 ```bash
-node build-index.js  # Build with your real data
+node scripts/build-index.js
 ```
 
 Works with any static hosting:
@@ -136,7 +211,7 @@ Works with any static hosting:
 - **GitHub Pages**: Deploy the `dist/` folder
 - **Netlify**: Drag and drop `dist/`
 - **Vercel**: Set build output to `dist/`
-- **Any web server**: Serve the `dist/` folder
+- **S3**: `aws s3 sync dist/ s3://your-bucket --delete`
 
 ## Customization
 
@@ -157,7 +232,7 @@ Edit `config.json` to customize titles and labels:
 }
 ```
 
-Then rebuild with `node build-index.js`.
+Then rebuild with `node scripts/build-index.js`.
 
 ### Colors
 

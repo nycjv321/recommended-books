@@ -239,7 +239,9 @@
 
     const coverImg = document.createElement("img");
     coverImg.className = "book-cover";
-    coverImg.src = book.cover;
+    coverImg.src = book.coverLocal
+      ? `books/${book.coverLocal}`
+      : book.cover;
     coverImg.alt = `Cover of ${book.title}`;
     coverImg.loading = "lazy";
 
@@ -316,7 +318,9 @@
    */
   function openModal(book) {
     // Populate modal content
-    modalElements.coverImg.src = book.cover;
+    modalElements.coverImg.src = book.coverLocal
+      ? `books/${book.coverLocal}`
+      : book.cover;
     modalElements.coverImg.alt = `Cover of ${book.title}`;
     modalElements.coverImg.onerror = function () {
       this.src =
@@ -333,9 +337,16 @@
     modalElements.title.textContent = book.title;
     modalElements.author.textContent = `by ${book.author}`;
     modalElements.category.textContent = book.category || "N/A";
-    modalElements.pages.textContent = book.pages
-      ? book.pages.toLocaleString()
-      : "N/A";
+
+    // Hide pages when < 5 (likely missing/placeholder data)
+    const pagesContainer = document.getElementById("meta-pages");
+    if (book.pages && book.pages >= 5) {
+      pagesContainer.style.display = "flex";
+      modalElements.pages.textContent = book.pages.toLocaleString();
+    } else {
+      pagesContainer.style.display = "none";
+    }
+
     modalElements.published.textContent = formatDate(book.publishDate);
 
     // Read date (optional)

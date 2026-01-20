@@ -4,8 +4,8 @@
  * Build script to generate the dist/ folder with all site files
  *
  * Usage:
- *   node build-index.js           # Build with real data from books/
- *   node build-index.js --sample  # Build with sample data from books-sample/
+ *   node scripts/build-index.js           # Build with real data from books/
+ *   node scripts/build-index.js --sample  # Build with sample data from books-sample/
  */
 
 const fs = require('fs');
@@ -14,7 +14,7 @@ const path = require('path');
 // Check for --sample flag
 const useSampleData = process.argv.includes('--sample');
 
-const ROOT_DIR = __dirname;
+const ROOT_DIR = path.join(__dirname, '..');
 const DIST_DIR = path.join(ROOT_DIR, 'dist');
 const CONFIG_FILE = path.join(ROOT_DIR, 'config.json');
 const SOURCE_DIR = useSampleData
@@ -24,7 +24,8 @@ const SOURCE_DIR = useSampleData
 // Static files to copy to dist/
 const STATIC_FILES = [
     'styles-minimalist.css',
-    'app.js'
+    'app.js',
+    'favicon.svg'
 ];
 
 // Files that need placeholder replacement
@@ -131,6 +132,21 @@ function buildBooks() {
     // Write index.json to dist/books/
     const indexPath = path.join(distBooksDir, 'index.json');
     fs.writeFileSync(indexPath, JSON.stringify(bookFiles, null, 4) + '\n');
+
+    // Copy covers folder if it exists
+    const coversDir = path.join(SOURCE_DIR, 'covers');
+    if (fs.existsSync(coversDir)) {
+        const destCoversDir = path.join(distBooksDir, 'covers');
+        ensureDir(destCoversDir);
+        const coverFiles = fs.readdirSync(coversDir).filter(f => !f.startsWith('.'));
+        for (const file of coverFiles) {
+            copyFile(
+                path.join(coversDir, file),
+                path.join(destCoversDir, file)
+            );
+        }
+        console.log(`Copied ${coverFiles.length} cover images`);
+    }
 
     return bookFiles;
 }
