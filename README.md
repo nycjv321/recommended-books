@@ -6,7 +6,7 @@ A minimalist static website to showcase book recommendations. No backend require
 
 ## Example
 
-See [Javier's Recommended Books](https://github.com/nycjv321/javiers-reccomended-books) for a live example of this template in action.
+See [Javier's Recommended Books](https://github.com/nycjv321/javiers-recommended-books.git) for a live example of this template in action.
 
 ## Features
 
