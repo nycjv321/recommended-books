@@ -33,12 +33,12 @@ const TEMPLATE_FILES = [
     'index.html'
 ];
 
-// Shelf folders to scan for books
-const SHELF_FOLDERS = [
-    'top-5-reads',
-    'good-reads',
-    'current-and-future-reads'
-];
+function getShelfFolders(config) {
+    if (config.shelves && Array.isArray(config.shelves)) {
+        return config.shelves.map(s => s.folder);
+    }
+    return [];
+}
 
 function ensureDir(dirPath) {
     if (!fs.existsSync(dirPath)) {
@@ -102,12 +102,13 @@ function copyStaticFiles(config) {
     copyFile(CONFIG_FILE, path.join(DIST_DIR, 'config.json'));
 }
 
-function buildBooks() {
+function buildBooks(config) {
     const bookFiles = [];
     const distBooksDir = path.join(DIST_DIR, 'books');
     ensureDir(distBooksDir);
+    const shelfFolders = getShelfFolders(config);
 
-    for (const folder of SHELF_FOLDERS) {
+    for (const folder of shelfFolders) {
         const folderPath = path.join(SOURCE_DIR, folder);
 
         if (!fs.existsSync(folderPath)) {
@@ -168,14 +169,15 @@ function build() {
     console.log('Processed templates with config values');
 
     // Build books
-    const bookFiles = buildBooks();
+    const bookFiles = buildBooks(config);
+    const shelfFolders = getShelfFolders(config);
 
     const dataSource = useSampleData ? 'sample' : 'real';
     console.log(`\nGenerated dist/books/index.json (${dataSource} data)`);
     console.log(`Source: ${SOURCE_DIR}`);
     console.log(`Found ${bookFiles.length} books:`);
 
-    for (const folder of SHELF_FOLDERS) {
+    for (const folder of shelfFolders) {
         const count = bookFiles.filter(f => f.startsWith(folder)).length;
         console.log(`  - ${folder}: ${count} books`);
     }

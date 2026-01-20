@@ -2,9 +2,10 @@
   "siteTitle": "My Reads",
   "siteSubtitle": "Books that shaped my career",
   "footerText": "Books I love and books to explore",
-  "shelves": {
-    "top5": "Top 5 Reads",
-    "good": "Good Reads",
-    "current": "Current and Future Reads"
-  }
+  "shelves": [
+    { "id": "top5", "label": "Top 5 Reads", "folder": "top-5-reads" },
+    { "id": "good", "label": "Good Reads", "folder": "good-reads" },
+    { "id": "current", "label": "Current Reads", "folder": "current-reads" },
+    { "id": "future", "label": "Future Reads", "folder": "future-reads" }
+  ]
 }

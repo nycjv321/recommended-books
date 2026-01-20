@@ -14,17 +14,30 @@ const path = require('path');
 const https = require('https');
 
 const ROOT_DIR = path.join(__dirname, '..');
+const CONFIG_FILE = path.join(ROOT_DIR, 'config.json');
 
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout
 });
 
-const SHELF_DIRS = {
-  top5: 'top-5-reads',
-  good: 'good-reads',
-  current: 'current-and-future-reads'
-};
+function loadConfig() {
+  if (!fs.existsSync(CONFIG_FILE)) {
+    console.error('Error: config.json not found');
+    process.exit(1);
+  }
+  return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
+}
+
+function getShelfDirs(config) {
+  const shelfDirs = {};
+  if (config.shelves && Array.isArray(config.shelves)) {
+    config.shelves.forEach(s => {
+      shelfDirs[s.id] = s.folder;
+    });
+  }
+  return shelfDirs;
+}
 
 const CATEGORIES = ['Programming', 'Self-Improvement', 'Business', 'Science', 'Biography', 'Fiction', 'Other'];
 
@@ -205,11 +218,11 @@ async function lookupBook(query) {
 // Move Book Functionality
 // ============================================
 
-function listAllBooks() {
+function listAllBooks(shelfDirs) {
   const booksDir = path.join(ROOT_DIR, 'books');
   const books = [];
 
-  for (const [shelfKey, shelfDir] of Object.entries(SHELF_DIRS)) {
+  for (const [shelfKey, shelfDir] of Object.entries(shelfDirs)) {
     const shelfPath = path.join(booksDir, shelfDir);
 
     if (!fs.existsSync(shelfPath)) continue;
@@ -237,9 +250,9 @@ function listAllBooks() {
   return books;
 }
 
-function moveBook(fromPath, toShelf) {
+function moveBook(fromPath, toShelf, shelfDirs) {
   const filename = path.basename(fromPath);
-  const toDir = path.join(ROOT_DIR, 'books', SHELF_DIRS[toShelf]);
+  const toDir = path.join(ROOT_DIR, 'books', shelfDirs[toShelf]);
   const toPath = path.join(toDir, filename);
 
   // Ensure destination directory exists
@@ -255,7 +268,9 @@ async function moveBookFlow() {
   console.log('\nMove a Book');
   console.log('-----------\n');
 
-  const books = listAllBooks();
+  const config = loadConfig();
+  const shelfDirs = getShelfDirs(config);
+  const books = listAllBooks(shelfDirs);
 
   if (books.length === 0) {
     console.log('No books found in books/ directory.\n');
@@ -283,7 +298,7 @@ async function moveBookFlow() {
 
   const selectedBook = books[bookIndex];
   console.log(`\nCurrent shelf: ${selectedBook.shelf}`);
-  console.log(`Options: ${Object.keys(SHELF_DIRS).join(', ')}`);
+  console.log(`Options: ${Object.keys(shelfDirs).join(', ')}`);
 
   const newShelf = await question('Move to: ');
   if (!newShelf.trim()) {
@@ -291,7 +306,7 @@ async function moveBookFlow() {
     return;
   }
 
-  if (!SHELF_DIRS[newShelf]) {
+  if (!shelfDirs[newShelf]) {
     console.log('Invalid shelf.\n');
     return;
   }
@@ -302,8 +317,8 @@ async function moveBookFlow() {
   }
 
   try {
-    const newPath = moveBook(selectedBook.filePath, newShelf);
-    console.log(`\n✓ Moved to books/${SHELF_DIRS[newShelf]}/${selectedBook.filename}\n`);
+    const newPath = moveBook(selectedBook.filePath, newShelf, shelfDirs);
+    console.log(`\n✓ Moved to books/${shelfDirs[newShelf]}/${selectedBook.filename}\n`);
   } catch (err) {
     console.error(`\nError moving book: ${err.message}\n`);
   }
@@ -336,6 +351,10 @@ async function promptWithDefault(prompt, defaultValue, validator) {
 async function addBookFlow() {
   console.log('\nAdd a New Book');
   console.log('--------------\n');
+
+  const config = loadConfig();
+  const shelfDirs = getShelfDirs(config);
+  const shelfIds = Object.keys(shelfDirs);
 
   let bookData = {};
 
@@ -419,12 +438,13 @@ async function addBookFlow() {
     clickBehavior = 'overlay';
   }
 
-  console.log(`  Options: ${Object.keys(SHELF_DIRS).join(', ')}`);
-  let shelf = await question('Shelf (top5/good/current) [good]: ');
-  shelf = shelf.trim() || 'good';
-  if (!SHELF_DIRS[shelf]) {
-    console.log('  Invalid shelf, defaulting to "good"');
-    shelf = 'good';
+  console.log(`  Options: ${shelfIds.join(', ')}`);
+  const defaultShelf = shelfIds.includes('good') ? 'good' : shelfIds[0];
+  let shelf = await question(`Shelf (${shelfIds.join('/')}) [${defaultShelf}]: `);
+  shelf = shelf.trim() || defaultShelf;
+  if (!shelfDirs[shelf]) {
+    console.log(`  Invalid shelf, defaulting to "${defaultShelf}"`);
+    shelf = defaultShelf;
   }
 
   const book = {
@@ -439,7 +459,7 @@ async function addBookFlow() {
   };
 
   const filename = `${toKebabCase(title)}.json`;
-  const shelfDir = SHELF_DIRS[shelf];
+  const shelfDir = shelfDirs[shelf];
   const filePath = path.join(ROOT_DIR, 'books', shelfDir, filename);
 
   // Ensure directory exists
