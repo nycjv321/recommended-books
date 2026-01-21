@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useBuildRepository, useSampleDataRepository } from '@/repositories';
 
 export default function Preview() {
   const navigate = useNavigate();
+  const buildRepo = useBuildRepository();
+  const sampleDataRepo = useSampleDataRepository();
+
   const [building, setBuilding] = useState(false);
   const [buildResult, setBuildResult] = useState<{ success: boolean; message: string } | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewRunning, setPreviewRunning] = useState(false);
-  const [useSampleData, setUseSampleData] = useState(false);
   const [sitePath, setSitePath] = useState('');
   const [distPath, setDistPath] = useState('');
 
@@ -17,24 +20,28 @@ export default function Preview() {
   const [existingBookCount, setExistingBookCount] = useState(0);
   const [sampleDataResult, setSampleDataResult] = useState<{ success: boolean; message: string } | null>(null);
 
+  // Sample data removal state
+  const [removingSampleData, setRemovingSampleData] = useState(false);
+  const [showRemoveConfirmDialog, setShowRemoveConfirmDialog] = useState(false);
+
   useEffect(() => {
     async function loadPaths() {
       const [site, dist] = await Promise.all([
-        window.electronAPI.getSitePath(),
-        window.electronAPI.getDistPath()
+        buildRepo.getSitePath(),
+        buildRepo.getDistPath()
       ]);
       setSitePath(site);
       setDistPath(dist);
     }
     loadPaths();
-  }, []);
+  }, [buildRepo]);
 
   async function handleBuild() {
     setBuilding(true);
     setBuildResult(null);
 
     try {
-      const result = await window.electronAPI.buildSite(useSampleData);
+      const result = await buildRepo.build(false);
       setBuildResult(result);
     } catch (error) {
       setBuildResult({
@@ -48,7 +55,7 @@ export default function Preview() {
 
   async function handleStartPreview() {
     try {
-      const info = await window.electronAPI.startPreviewServer();
+      const info = await buildRepo.startPreviewServer();
       setPreviewUrl(info.url);
       setPreviewRunning(true);
     } catch (error) {
@@ -61,7 +68,7 @@ export default function Preview() {
 
   async function handleStopPreview() {
     try {
-      await window.electronAPI.stopPreviewServer();
+      await buildRepo.stopPreviewServer();
       setPreviewUrl(null);
       setPreviewRunning(false);
     } catch (error) {
@@ -71,19 +78,19 @@ export default function Preview() {
 
   async function handleOpenInBrowser() {
     if (previewUrl) {
-      await window.electronAPI.openInBrowser(previewUrl);
+      await buildRepo.openInBrowser(previewUrl);
     }
   }
 
   async function handleOpenDistFolder() {
-    await window.electronAPI.openInFileExplorer(distPath);
+    await buildRepo.openInFileExplorer(distPath);
   }
 
   async function handleLoadSampleDataClick() {
     setSampleDataResult(null);
 
     try {
-      const { count } = await window.electronAPI.checkExistingBooks();
+      const { count } = await sampleDataRepo.checkExistingBooks();
       setExistingBookCount(count);
       setShowConfirmDialog(true);
     } catch (error) {
@@ -100,7 +107,7 @@ export default function Preview() {
     setSampleDataResult(null);
 
     try {
-      const result = await window.electronAPI.loadSampleData();
+      const result = await sampleDataRepo.load();
 
       if (result.success) {
         setSampleDataResult({
@@ -127,6 +134,32 @@ export default function Preview() {
     }
   }
 
+  function handleRemoveSampleDataClick() {
+    setSampleDataResult(null);
+    setShowRemoveConfirmDialog(true);
+  }
+
+  async function handleConfirmRemoveSampleData() {
+    setShowRemoveConfirmDialog(false);
+    setRemovingSampleData(true);
+    setSampleDataResult(null);
+
+    try {
+      const result = await sampleDataRepo.remove();
+      setSampleDataResult({
+        success: result.success,
+        message: result.message
+      });
+    } catch (error) {
+      setSampleDataResult({
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to remove sample data'
+      });
+    } finally {
+      setRemovingSampleData(false);
+    }
+  }
+
   return (
     <div>
       <div className="page-header">
@@ -141,17 +174,6 @@ export default function Preview() {
           <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px', marginBottom: '16px' }}>
             Build the static site from your book data. The output will be placed in the <code>dist/</code> folder.
           </p>
-
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={useSampleData}
-                onChange={(e) => setUseSampleData(e.target.checked)}
-              />
-              <span style={{ fontSize: '14px' }}>Use sample data (for testing)</span>
-            </label>
-          </div>
 
           <div style={{ display: 'flex', gap: '12px' }}>
             <button
@@ -295,25 +317,47 @@ export default function Preview() {
           into your books folder and configure the default shelves. Your existing books will not be deleted.
         </p>
 
-        <button
-          className="btn btn-secondary"
-          onClick={handleLoadSampleDataClick}
-          disabled={loadingSampleData}
-        >
-          {loadingSampleData ? (
-            <>
-              <div className="spinner" style={{ width: '16px', height: '16px' }}></div>
-              Loading...
-            </>
-          ) : (
-            <>
-              <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              Load Sample Data
-            </>
-          )}
-        </button>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button
+            className="btn btn-secondary"
+            onClick={handleLoadSampleDataClick}
+            disabled={loadingSampleData || removingSampleData}
+          >
+            {loadingSampleData ? (
+              <>
+                <div className="spinner" style={{ width: '16px', height: '16px' }}></div>
+                Loading...
+              </>
+            ) : (
+              <>
+                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Load Sample Data
+              </>
+            )}
+          </button>
+
+          <button
+            className="btn btn-danger-outline"
+            onClick={handleRemoveSampleDataClick}
+            disabled={loadingSampleData || removingSampleData}
+          >
+            {removingSampleData ? (
+              <>
+                <div className="spinner" style={{ width: '16px', height: '16px' }}></div>
+                Removing...
+              </>
+            ) : (
+              <>
+                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Remove Sample Data
+              </>
+            )}
+          </button>
+        </div>
 
         {sampleDataResult && (
           <div
@@ -402,6 +446,57 @@ export default function Preview() {
                 onClick={handleConfirmLoadSampleData}
               >
                 Load Sample Data
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showRemoveConfirmDialog && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}
+          onClick={() => setShowRemoveConfirmDialog(false)}
+        >
+          <div
+            className="card"
+            style={{
+              maxWidth: '400px',
+              margin: '20px'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="card-title" style={{ marginBottom: '16px' }}>Remove Sample Data</h2>
+            <p style={{ marginBottom: '16px' }}>
+              This will remove books that match the sample data exactly. Books you've edited or added will not be affected.
+            </p>
+            <p style={{ marginBottom: '16px', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+              Continue?
+            </p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setShowRemoveConfirmDialog(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={handleConfirmRemoveSampleData}
+              >
+                Remove Sample Data
               </button>
             </div>
           </div>

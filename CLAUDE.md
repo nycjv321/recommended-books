@@ -20,25 +20,29 @@ recommended-books/
 │   │   ├── tsconfig.json
 │   │   ├── vite.config.ts
 │   │   ├── electron/
-│   │   │   ├── main.ts             # Electron main process
+│   │   │   ├── main.ts             # Electron main process, IPC handlers
 │   │   │   └── preload.ts          # IPC bridge
 │   │   └── src/
-│   │       ├── App.tsx
+│   │       ├── main.tsx            # Entry point, RepositoryProvider setup
+│   │       ├── App.tsx             # Root component with routing
 │   │       ├── components/
 │   │       │   ├── Dashboard.tsx
 │   │       │   ├── BookList.tsx
 │   │       │   ├── BookForm.tsx
 │   │       │   ├── ShelfManager.tsx
 │   │       │   ├── ConfigEditor.tsx
-│   │       │   └── Preview.tsx
-│   │       ├── lib/
-│   │       │   ├── config.ts
-│   │       │   ├── books.ts
-│   │       │   ├── shelves.ts
-│   │       │   ├── covers.ts
-│   │       │   ├── open-library.ts
-│   │       │   ├── build.ts
-│   │       │   └── preview-server.ts
+│   │       │   ├── Preview.tsx
+│   │       │   └── SetupWizard.tsx # First-run library path setup
+│   │       ├── repositories/       # Data access layer
+│   │       │   ├── interfaces/     # Repository contracts
+│   │       │   ├── electron/       # Electron IPC implementations
+│   │       │   ├── mock/           # Mock implementations for testing
+│   │       │   ├── RepositoryContext.tsx
+│   │       │   └── index.ts
+│   │       ├── lib/                # Pure utilities (no data access)
+│   │       │   ├── books.ts        # CATEGORIES, filter helpers
+│   │       │   ├── config.ts       # toKebabCase, shelfIdToFolder
+│   │       │   └── open-library.ts # getCoverUrl, result transformer
 │   │       └── types/
 │   │           └── index.ts
 │   └── site/                       # Static site
@@ -64,14 +68,14 @@ recommended-books/
 
 | File | Purpose |
 |------|---------|
-| `electron/main.ts` | Electron main process, IPC handlers |
-| `electron/preload.ts` | IPC bridge for renderer |
-| `src/App.tsx` | Root component with routing |
+| `electron/main.ts` | Electron main process, IPC handlers, app settings storage |
+| `electron/preload.ts` | IPC bridge exposing `window.electronAPI` |
+| `src/main.tsx` | App entry point, wraps app with `RepositoryProvider` |
+| `src/App.tsx` | Root component with routing, setup check |
 | `src/components/*.tsx` | React UI components |
-| `src/lib/*.ts` | Business logic (config, books, shelves, etc.) |
+| `src/repositories/` | Data access layer (repository pattern) |
+| `src/lib/*.ts` | Pure utility functions and constants |
 | `src/types/index.ts` | TypeScript type definitions |
-| `vite.config.ts` | Vite bundler configuration |
-| `package.json` | Dependencies and electron-builder config |
 
 ### Site (packages/site/)
 
@@ -89,17 +93,79 @@ recommended-books/
 
 ## Architecture
 
-### Admin App Architecture
+### Repository Pattern
 
-The Electron app uses:
-- **Main process** (`electron/main.ts`): File system operations, IPC handlers
-- **Preload script** (`electron/preload.ts`): Secure IPC bridge
-- **Renderer process** (`src/`): React UI
+The admin app uses a repository pattern for data access, enabling testability and separation of concerns:
 
-IPC communication flows:
-1. React component calls `window.electronAPI.method()`
-2. Preload script invokes `ipcRenderer.invoke()`
-3. Main process handles the request and returns result
+```
+Components → useXRepository() hook → Repository Interface → Implementation
+                                                              ├── ElectronRepository (IPC calls)
+                                                              └── MockRepository (for testing)
+```
+
+**Repository interfaces** (`src/repositories/interfaces/`):
+- `BookRepository` - Book CRUD operations
+- `ShelfRepository` - Shelf creation/deletion
+- `ConfigRepository` - Site configuration
+- `SettingsRepository` - App settings (library path)
+- `CoverRepository` - Cover image operations
+- `BuildRepository` - Build site, preview server
+- `OpenLibraryRepository` - External API search
+- `SampleDataRepository` - Sample data load/remove
+
+**Usage in components**:
+```typescript
+import { useBookRepository, useConfigRepository } from '@/repositories';
+
+function MyComponent() {
+  const bookRepo = useBookRepository();
+  const configRepo = useConfigRepository();
+
+  // Use repository methods
+  const books = await bookRepo.getAll();
+  const config = await configRepo.get();
+}
+```
+
+**Testing with mocks**:
+```typescript
+import { createMockRepositories, RepositoryProvider } from '@/repositories';
+
+const mockRepos = createMockRepositories();
+mockRepos.books.setBooks([/* test data */]);
+
+render(
+  <RepositoryProvider repositories={mockRepos}>
+    <ComponentUnderTest />
+  </RepositoryProvider>
+);
+```
+
+### Configurable Library Path
+
+The admin app supports configurable library locations:
+
+- **App settings** stored in: `app.getPath('userData')/settings.json`
+- **Library data** (books, config.json) stored in: user-selected folder
+- On first launch, `SetupWizard` prompts user to select library folder
+- Library path can be changed via Site Config page
+
+### IPC Communication
+
+1. React component calls repository method (e.g., `bookRepo.getAll()`)
+2. Electron implementation calls `window.electronAPI.method()`
+3. Preload script invokes `ipcRenderer.invoke()`
+4. Main process handles the request and returns result
+
+### Utility Functions (`lib/`)
+
+The `lib/` folder contains **only pure functions** - no data access:
+
+| File | Exports | Purpose |
+|------|---------|---------|
+| `books.ts` | `CATEGORIES`, `getBooksByShelf()`, `searchBooks()` | Constants, in-memory filters |
+| `config.ts` | `toKebabCase()`, `shelfIdToFolder()` | String transformers |
+| `open-library.ts` | `getCoverUrl()`, `openLibraryResultToBook()` | URL builder, API result transformer |
 
 ### Book Data Flow
 
@@ -196,6 +262,10 @@ interface Config {
   footerText: string;
   shelves: Shelf[];
 }
+
+interface AppSettings {
+  libraryPath: string | null;
+}
 ```
 
 ## Design Decisions
@@ -204,8 +274,11 @@ interface Config {
 - **Electron + React**: Modern desktop app with web technologies
 - **TypeScript**: Type safety for admin app
 - **Vite**: Fast bundler for development
+- **Repository pattern**: Testable data access layer with interface/implementation separation
 - **IPC security**: contextIsolation and preload scripts
+- **Configurable library path**: Stored in userData, separate from library content
 - **Folder-based shelves**: Book's shelf determined by folder, not JSON field
+- **Pure utilities in lib/**: No data access in lib/ - only constants and pure functions
 - **System fonts + Inter**: Fast loading with modern typography
 
 ## Things to Avoid
@@ -213,7 +286,8 @@ interface Config {
 - Don't manually edit `packages/site/dist/` - it gets cleaned on each build
 - Don't add `shelf` field to book JSON - it's derived from folder
 - Don't serve from site root - always serve from `dist/`
-- Don't skip IPC for file operations - use the preload bridge
+- Don't call `window.electronAPI` directly in components - use repository hooks
+- Don't add data access functions to `lib/` - use repositories instead
 
 ## Dependencies
 

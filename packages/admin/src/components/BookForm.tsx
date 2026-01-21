@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Book, BookWithMeta, Shelf, OpenLibrarySearchResult } from '@/types';
+import { useBookRepository, useOpenLibraryRepository } from '@/repositories';
 import { CATEGORIES } from '@/lib/books';
 import { toKebabCase } from '@/lib/config';
 import { getCoverUrl, openLibraryResultToBook } from '@/lib/open-library';
@@ -12,6 +13,9 @@ interface BookFormProps {
 }
 
 export default function BookForm({ book, shelves, onClose, onSave }: BookFormProps) {
+  const bookRepo = useBookRepository();
+  const openLibraryRepo = useOpenLibraryRepository();
+
   const [formData, setFormData] = useState<Partial<Book>>({
     title: '',
     author: '',
@@ -58,7 +62,7 @@ export default function BookForm({ book, shelves, onClose, onSave }: BookFormPro
     setError('');
 
     try {
-      const results = await window.electronAPI.searchOpenLibrary(searchQuery);
+      const results = await openLibraryRepo.search(searchQuery);
       setSearchResults(results);
     } catch (err) {
       setError('Failed to search Open Library');
@@ -120,11 +124,11 @@ export default function BookForm({ book, shelves, onClose, onSave }: BookFormPro
 
       // If editing and shelf changed, move first
       if (book && book.shelfId !== selectedShelf) {
-        await window.electronAPI.moveBook(book.filePath, selectedShelf);
+        await bookRepo.move(book.filePath, selectedShelf);
       }
 
       // Save the book
-      await window.electronAPI.saveBook(selectedShelf, fileName, bookData);
+      await bookRepo.save(selectedShelf, fileName, bookData);
 
       onSave();
     } catch (err) {

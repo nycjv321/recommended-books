@@ -1,26 +1,69 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, shell, dialog } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as http from 'http';
 import * as https from 'https';
 
-// Get the site path relative to the admin package
-const SITE_PATH = path.join(__dirname, '..', '..', 'site');
+// ============================================
+// App Settings (stored in userData, separate from library)
+// ============================================
+
+interface AppSettings {
+  libraryPath: string | null;
+}
+
+function getSettingsPath(): string {
+  return path.join(app.getPath('userData'), 'settings.json');
+}
+
+function loadSettings(): AppSettings {
+  const settingsPath = getSettingsPath();
+  if (fs.existsSync(settingsPath)) {
+    try {
+      return JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+    } catch {
+      // Return defaults if settings file is corrupted
+    }
+  }
+  return { libraryPath: null };
+}
+
+function saveSettings(settings: AppSettings): void {
+  const settingsPath = getSettingsPath();
+  fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+}
+
+// ============================================
+// Dynamic Path Functions (use configured library path)
+// ============================================
+
+function getLibraryPath(): string {
+  const settings = loadSettings();
+  if (!settings.libraryPath) {
+    throw new Error('Library path not configured');
+  }
+  return settings.libraryPath;
+}
 
 function getSitePath(): string {
-  return SITE_PATH;
+  return getLibraryPath();
 }
 
 function getBooksPath(): string {
-  return path.join(SITE_PATH, 'books');
+  return path.join(getLibraryPath(), 'books');
 }
 
 function getDistPath(): string {
-  return path.join(SITE_PATH, 'dist');
+  return path.join(getLibraryPath(), 'dist');
 }
 
 function getConfigPath(): string {
-  return path.join(SITE_PATH, 'config.json');
+  return path.join(getLibraryPath(), 'config.json');
+}
+
+// For sample data, we still need the bundled path
+function getBundledSitePath(): string {
+  return path.join(__dirname, '..', '..', 'site');
 }
 
 // Types (duplicated from renderer for main process use)
@@ -64,6 +107,7 @@ function createWindow(): void {
   const mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    icon: path.join(__dirname, '..', 'build', 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -293,7 +337,7 @@ ipcMain.handle('download-cover', async (_event, url: string, fileName: string): 
 });
 
 ipcMain.handle('delete-cover', async (_event, coverPath: string): Promise<void> => {
-  const fullPath = path.join(SITE_PATH, coverPath);
+  const fullPath = path.join(getLibraryPath(), coverPath);
   if (fs.existsSync(fullPath)) {
     fs.unlinkSync(fullPath);
   }
@@ -339,11 +383,13 @@ ipcMain.handle('search-open-library', async (_event, query: string): Promise<Ope
 
 ipcMain.handle('build-site', async (_event, useSampleData: boolean = false): Promise<{ success: boolean; message: string }> => {
   try {
+    const libraryPath = getLibraryPath();
+    const bundledSitePath = getBundledSitePath();
     const distDir = getDistPath();
     const configPath = getConfigPath();
     const sourceDir = useSampleData
-      ? path.join(SITE_PATH, 'books-sample')
-      : path.join(SITE_PATH, 'books');
+      ? path.join(bundledSitePath, 'books-sample')
+      : path.join(libraryPath, 'books');
 
     // Load config
     const config: Config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
@@ -354,19 +400,19 @@ ipcMain.handle('build-site', async (_event, useSampleData: boolean = false): Pro
     }
     fs.mkdirSync(distDir, { recursive: true });
 
-    // Static files to copy
+    // Static files to copy (from bundled site)
     const staticFiles = ['styles-minimalist.css', 'app.js', 'favicon.svg'];
 
     for (const file of staticFiles) {
-      const srcPath = path.join(SITE_PATH, file);
+      const srcPath = path.join(bundledSitePath, file);
       const destPath = path.join(distDir, file);
       if (fs.existsSync(srcPath)) {
         fs.copyFileSync(srcPath, destPath);
       }
     }
 
-    // Process index.html with placeholders
-    const indexSrc = path.join(SITE_PATH, 'index.html');
+    // Process index.html with placeholders (from bundled site)
+    const indexSrc = path.join(bundledSitePath, 'index.html');
     if (fs.existsSync(indexSrc)) {
       let content = fs.readFileSync(indexSrc, 'utf-8');
       content = content
@@ -545,6 +591,51 @@ ipcMain.handle('get-dist-path', async (): Promise<string> => {
 });
 
 // ============================================
+// App Settings IPC Handlers
+// ============================================
+
+ipcMain.handle('get-settings', async (): Promise<AppSettings> => {
+  return loadSettings();
+});
+
+ipcMain.handle('save-settings', async (_event, settings: AppSettings): Promise<void> => {
+  saveSettings(settings);
+});
+
+ipcMain.handle('select-library-path', async (): Promise<string | null> => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openDirectory', 'createDirectory'],
+    title: 'Select Book Library Folder'
+  });
+  return result.canceled ? null : result.filePaths[0];
+});
+
+ipcMain.handle('validate-library-path', async (_event, libraryPath: string): Promise<{ isValid: boolean; isEmpty: boolean }> => {
+  const configPath = path.join(libraryPath, 'config.json');
+  const hasConfig = fs.existsSync(configPath);
+  return { isValid: hasConfig, isEmpty: !hasConfig };
+});
+
+ipcMain.handle('initialize-library', async (_event, libraryPath: string): Promise<{ success: boolean }> => {
+  const configPath = path.join(libraryPath, 'config.json');
+  const booksPath = path.join(libraryPath, 'books');
+
+  // Create books directory
+  fs.mkdirSync(booksPath, { recursive: true });
+
+  // Create default config
+  const defaultConfig = {
+    siteTitle: 'My Reads',
+    siteSubtitle: 'Personal book recommendations',
+    footerText: '',
+    shelves: []
+  };
+  fs.writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2));
+
+  return { success: true };
+});
+
+// ============================================
 // Sample Data IPC Handlers
 // ============================================
 
@@ -572,7 +663,7 @@ ipcMain.handle('check-existing-books', async (): Promise<{ count: number }> => {
 ipcMain.handle('load-sample-data', async (): Promise<{ success: boolean; message: string; booksLoaded: number }> => {
   try {
     const booksPath = getBooksPath();
-    const samplePath = path.join(SITE_PATH, 'books-sample');
+    const samplePath = path.join(getBundledSitePath(), 'books-sample');
     const configPath = getConfigPath();
 
     // Check if sample data exists
@@ -634,6 +725,90 @@ ipcMain.handle('load-sample-data', async (): Promise<{ success: boolean; message
       success: false,
       message: error instanceof Error ? error.message : 'Unknown error loading sample data',
       booksLoaded: 0
+    };
+  }
+});
+
+ipcMain.handle('remove-sample-data', async (): Promise<{ success: boolean; message: string; booksRemoved: number }> => {
+  try {
+    const booksPath = getBooksPath();
+    const samplePath = path.join(getBundledSitePath(), 'books-sample');
+
+    // Check if sample data folder exists
+    if (!fs.existsSync(samplePath)) {
+      return {
+        success: false,
+        message: 'Sample data folder (books-sample/) not found',
+        booksRemoved: 0
+      };
+    }
+
+    // Check if books folder exists
+    if (!fs.existsSync(booksPath)) {
+      return {
+        success: true,
+        message: 'No books folder found - nothing to remove',
+        booksRemoved: 0
+      };
+    }
+
+    let booksRemoved = 0;
+
+    // Iterate through sample shelf folders
+    const sampleEntries = fs.readdirSync(samplePath, { withFileTypes: true });
+    for (const entry of sampleEntries) {
+      if (entry.isDirectory()) {
+        const sampleShelfPath = path.join(samplePath, entry.name);
+        const booksShelfPath = path.join(booksPath, entry.name);
+
+        // Skip if corresponding shelf doesn't exist in books/
+        if (!fs.existsSync(booksShelfPath)) {
+          continue;
+        }
+
+        // Get all JSON files in the sample shelf
+        const sampleFiles = fs.readdirSync(sampleShelfPath).filter(f => f.endsWith('.json'));
+
+        for (const file of sampleFiles) {
+          const sampleFilePath = path.join(sampleShelfPath, file);
+          const booksFilePath = path.join(booksShelfPath, file);
+
+          // Skip if the file doesn't exist in books/
+          if (!fs.existsSync(booksFilePath)) {
+            continue;
+          }
+
+          // Compare file contents
+          const sampleContent = fs.readFileSync(sampleFilePath, 'utf-8');
+          const booksContent = fs.readFileSync(booksFilePath, 'utf-8');
+
+          // If content is identical, it's unmodified sample data - remove it
+          if (sampleContent === booksContent) {
+            fs.unlinkSync(booksFilePath);
+            booksRemoved++;
+          }
+        }
+
+        // Remove empty shelf folder
+        const remainingFiles = fs.readdirSync(booksShelfPath).filter(f => f.endsWith('.json'));
+        if (remainingFiles.length === 0) {
+          fs.rmdirSync(booksShelfPath);
+        }
+      }
+    }
+
+    return {
+      success: true,
+      message: booksRemoved > 0
+        ? `Removed ${booksRemoved} sample book${booksRemoved === 1 ? '' : 's'}`
+        : 'No unmodified sample books found to remove',
+      booksRemoved
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Unknown error removing sample data',
+      booksRemoved: 0
     };
   }
 });

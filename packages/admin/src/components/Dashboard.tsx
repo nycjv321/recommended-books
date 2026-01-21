@@ -1,8 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import type { BookWithMeta, Config } from '@/types';
+import { useBookRepository, useConfigRepository } from '@/repositories';
 
 export default function Dashboard() {
+  const bookRepo = useBookRepository();
+  const configRepo = useConfigRepository();
+
   const [books, setBooks] = useState<BookWithMeta[]>([]);
   const [config, setConfig] = useState<Config | null>(null);
   const [loading, setLoading] = useState(true);
@@ -11,8 +15,8 @@ export default function Dashboard() {
     async function loadData() {
       try {
         const [booksData, configData] = await Promise.all([
-          window.electronAPI.getBooks(),
-          window.electronAPI.getConfig()
+          bookRepo.getAll(),
+          configRepo.get()
         ]);
         setBooks(booksData);
         setConfig(configData);
@@ -23,7 +27,7 @@ export default function Dashboard() {
       }
     }
     loadData();
-  }, []);
+  }, [bookRepo, configRepo]);
 
   if (loading) {
     return (

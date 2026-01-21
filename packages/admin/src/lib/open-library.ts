@@ -1,34 +1,26 @@
 import type { OpenLibrarySearchResult } from '@/types';
 
+// API URL constants
 const OPEN_LIBRARY_API = 'https://openlibrary.org';
 const COVERS_API = 'https://covers.openlibrary.org';
 
-export function isIsbn(query: string): boolean {
-  const cleaned = query.replace(/[-\s]/g, '');
-  return /^\d{10}$/.test(cleaned) || /^\d{13}$/.test(cleaned);
-}
-
-export async function searchOpenLibrary(query: string): Promise<OpenLibrarySearchResult[]> {
-  return window.electronAPI.searchOpenLibrary(query);
-}
+// Pure utility functions
 
 export function getCoverUrl(coverId: number | undefined, size: 'S' | 'M' | 'L' = 'L'): string | undefined {
   if (!coverId) return undefined;
   return `${COVERS_API}/b/id/${coverId}-${size}.jpg`;
 }
 
-export function getCoverUrlByOlid(olid: string, size: 'S' | 'M' | 'L' = 'L'): string {
-  return `${COVERS_API}/b/olid/${olid}-${size}.jpg`;
-}
-
-export function getBookUrl(key: string): string {
+function getBookUrl(key: string): string {
   return `${OPEN_LIBRARY_API}${key}`;
 }
 
-export function formatPublishDate(year: number | undefined): string {
+function formatPublishDate(year: number | undefined): string {
   if (!year) return '';
   return `${year}-01-01`;
 }
+
+// Transformer function
 
 export function openLibraryResultToBook(result: OpenLibrarySearchResult): {
   title: string;

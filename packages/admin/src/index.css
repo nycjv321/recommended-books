@@ -50,11 +50,13 @@ body {
   display: flex;
   flex-direction: column;
   padding-top: 44px; /* Space for traffic lights on macOS */
+  -webkit-app-region: drag;
 }
 
 .sidebar-header {
   padding: 16px 20px;
   border-bottom: 1px solid var(--color-border);
+  -webkit-app-region: no-drag;
 }
 
 .sidebar-title {
@@ -67,6 +69,7 @@ body {
   flex: 1;
   padding: 12px;
   overflow-y: auto;
+  -webkit-app-region: no-drag;
 }
 
 .nav-section {
@@ -199,6 +202,17 @@ body {
 
 .btn-danger:hover {
   background: var(--color-danger-hover);
+}
+
+.btn-danger-outline {
+  background: var(--color-surface);
+  color: var(--color-danger);
+  border: 1px solid var(--color-danger);
+}
+
+.btn-danger-outline:hover {
+  background: var(--color-danger);
+  color: white;
 }
 
 .btn-sm {
@@ -401,22 +415,24 @@ body {
 
 /* Shelf cards */
 .shelf-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 875px;
 }
 
 .shelf-card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  padding: 20px;
+  padding: 24px;
   cursor: pointer;
   transition: all var(--transition);
 }
 
 .shelf-card:hover {
   border-color: var(--color-primary);
+  box-shadow: var(--shadow-sm);
 }
 
 .shelf-card-header {
@@ -427,19 +443,21 @@ body {
 }
 
 .shelf-label {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
   color: var(--color-text);
 }
 
 .shelf-count {
-  font-size: 24px;
+  font-size: 28px;
   font-weight: 600;
   color: var(--color-primary);
+  min-width: 48px;
+  text-align: right;
 }
 
 .shelf-folder {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--color-text-secondary);
 }
 
@@ -760,4 +778,101 @@ body {
 .search-result-year {
   font-size: 11px;
   color: var(--color-text-secondary);
+}
+
+/* Setup Wizard */
+.setup-wizard {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: var(--color-bg);
+  padding: 20px;
+}
+
+.setup-wizard-content {
+  text-align: center;
+  max-width: 480px;
+  padding: 48px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.setup-wizard-icon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg);
+  border-radius: 50%;
+  color: var(--color-primary);
+}
+
+.setup-wizard-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: 12px;
+}
+
+.setup-wizard-subtitle {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  margin-bottom: 32px;
+}
+
+.setup-wizard-path {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  background: var(--color-bg);
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  margin-bottom: 24px;
+  word-break: break-all;
+}
+
+.setup-wizard-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.btn-lg {
+  padding: 12px 24px;
+  font-size: 16px;
+}
+
+/* Library path section in ConfigEditor */
+.library-path-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background: var(--color-bg);
+  border-radius: var(--radius-md);
+  margin-bottom: 20px;
+}
+
+.library-path-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.library-path-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  margin-bottom: 4px;
+}
+
+.library-path-value {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  color: var(--color-text);
+  word-break: break-all;
 }

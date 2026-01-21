@@ -44,6 +44,10 @@ interface OpenLibrarySearchResult {
   subject?: string[];
 }
 
+interface AppSettings {
+  libraryPath: string | null;
+}
+
 // Expose protected methods to the renderer process
 contextBridge.exposeInMainWorld('electronAPI', {
   // Config operations
@@ -119,4 +123,23 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   loadSampleData: (): Promise<{ success: boolean; message: string; booksLoaded: number }> =>
     ipcRenderer.invoke('load-sample-data'),
+
+  removeSampleData: (): Promise<{ success: boolean; message: string; booksRemoved: number }> =>
+    ipcRenderer.invoke('remove-sample-data'),
+
+  // App settings
+  getSettings: (): Promise<AppSettings> =>
+    ipcRenderer.invoke('get-settings'),
+
+  saveSettings: (settings: AppSettings): Promise<void> =>
+    ipcRenderer.invoke('save-settings', settings),
+
+  selectLibraryPath: (): Promise<string | null> =>
+    ipcRenderer.invoke('select-library-path'),
+
+  validateLibraryPath: (libraryPath: string): Promise<{ isValid: boolean; isEmpty: boolean }> =>
+    ipcRenderer.invoke('validate-library-path', libraryPath),
+
+  initializeLibrary: (libraryPath: string): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('initialize-library', libraryPath),
 });

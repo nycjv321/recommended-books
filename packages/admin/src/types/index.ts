@@ -51,6 +51,11 @@ export interface OpenLibrarySearchResponse {
   docs: OpenLibrarySearchResult[];
 }
 
+// App settings (stored in userData, separate from library)
+export interface AppSettings {
+  libraryPath: string | null;
+}
+
 // IPC types for Electron
 export interface ElectronAPI {
   // Config operations
@@ -90,6 +95,14 @@ export interface ElectronAPI {
   // Sample data
   checkExistingBooks: () => Promise<{ count: number }>;
   loadSampleData: () => Promise<{ success: boolean; message: string; booksLoaded: number }>;
+  removeSampleData: () => Promise<{ success: boolean; message: string; booksRemoved: number }>;
+
+  // App settings
+  getSettings: () => Promise<AppSettings>;
+  saveSettings: (settings: AppSettings) => Promise<void>;
+  selectLibraryPath: () => Promise<string | null>;
+  validateLibraryPath: (libraryPath: string) => Promise<{ isValid: boolean; isEmpty: boolean }>;
+  initializeLibrary: (libraryPath: string) => Promise<{ success: boolean }>;
 }
 
 declare global {

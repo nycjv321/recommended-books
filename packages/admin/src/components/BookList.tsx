@@ -1,8 +1,12 @@
-import { useState, useEffect, useMemo } from 'react';
-import type { BookWithMeta, Config, Shelf } from '@/types';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import type { BookWithMeta, Shelf } from '@/types';
+import { useBookRepository, useConfigRepository } from '@/repositories';
 import BookForm from './BookForm';
 
 export default function BookList() {
+  const bookRepo = useBookRepository();
+  const configRepo = useConfigRepository();
+
   const [books, setBooks] = useState<BookWithMeta[]>([]);
   const [shelves, setShelves] = useState<Shelf[]>([]);
   const [loading, setLoading] = useState(true);
@@ -12,11 +16,11 @@ export default function BookList() {
   const [editingBook, setEditingBook] = useState<BookWithMeta | null>(null);
   const [selectedBooks, setSelectedBooks] = useState<Set<string>>(new Set());
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
     try {
       const [booksData, configData] = await Promise.all([
-        window.electronAPI.getBooks(),
-        window.electronAPI.getConfig()
+        bookRepo.getAll(),
+        configRepo.get()
       ]);
       setBooks(booksData);
       setShelves(configData.shelves);
@@ -25,11 +29,11 @@ export default function BookList() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [bookRepo, configRepo]);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   const filteredBooks = useMemo(() => {
     let result = books;
@@ -55,7 +59,7 @@ export default function BookList() {
     if (!confirm(`Delete "${book.title}"? This cannot be undone.`)) return;
 
     try {
-      await window.electronAPI.deleteBook(book.filePath);
+      await bookRepo.delete(book.filePath);
       await loadData();
     } catch (error) {
       console.error('Failed to delete book:', error);
@@ -65,7 +69,7 @@ export default function BookList() {
 
   async function handleMove(book: BookWithMeta, targetShelfId: string) {
     try {
-      await window.electronAPI.moveBook(book.filePath, targetShelfId);
+      await bookRepo.move(book.filePath, targetShelfId);
       await loadData();
     } catch (error) {
       console.error('Failed to move book:', error);
@@ -78,7 +82,7 @@ export default function BookList() {
 
     try {
       for (const filePath of selectedBooks) {
-        await window.electronAPI.moveBook(filePath, targetShelfId);
+        await bookRepo.move(filePath, targetShelfId);
       }
       setSelectedBooks(new Set());
       await loadData();
@@ -94,7 +98,7 @@ export default function BookList() {
 
     try {
       for (const filePath of selectedBooks) {
-        await window.electronAPI.deleteBook(filePath);
+        await bookRepo.delete(filePath);
       }
       setSelectedBooks(new Set());
       await loadData();

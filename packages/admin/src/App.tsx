@@ -1,11 +1,46 @@
+import { useState, useEffect } from 'react';
 import { Routes, Route, NavLink } from 'react-router-dom';
 import Dashboard from './components/Dashboard';
 import BookList from './components/BookList';
 import ShelfManager from './components/ShelfManager';
 import ConfigEditor from './components/ConfigEditor';
 import Preview from './components/Preview';
+import SetupWizard from './components/SetupWizard';
+import { useSettingsRepository } from './repositories';
 
 function App() {
+  const settingsRepo = useSettingsRepository();
+
+  const [checkingSetup, setCheckingSetup] = useState(true);
+  const [needsSetup, setNeedsSetup] = useState(false);
+
+  useEffect(() => {
+    async function checkSetup() {
+      try {
+        const settings = await settingsRepo.get();
+        setNeedsSetup(settings.libraryPath === null);
+      } catch (err) {
+        console.error('Failed to check library configuration:', err);
+        setNeedsSetup(true);
+      } finally {
+        setCheckingSetup(false);
+      }
+    }
+    checkSetup();
+  }, [settingsRepo]);
+
+  if (checkingSetup) {
+    return (
+      <div className="loading" style={{ height: '100vh' }}>
+        <div className="spinner"></div>
+      </div>
+    );
+  }
+
+  if (needsSetup) {
+    return <SetupWizard onComplete={() => setNeedsSetup(false)} />;
+  }
+
   return (
     <div className="app-layout">
       <aside className="sidebar">

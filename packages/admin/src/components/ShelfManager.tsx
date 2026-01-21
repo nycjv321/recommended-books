@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import type { Shelf, BookWithMeta, Config } from '@/types';
+import type { Shelf, BookWithMeta } from '@/types';
+import { useConfigRepository, useBookRepository, useShelfRepository } from '@/repositories';
 
 interface SortableShelfProps {
   shelf: Shelf;
@@ -176,6 +177,10 @@ function ShelfFormModal({ shelf, onClose, onSave }: ShelfFormModalProps) {
 }
 
 export default function ShelfManager() {
+  const configRepo = useConfigRepository();
+  const bookRepo = useBookRepository();
+  const shelfRepo = useShelfRepository();
+
   const [shelves, setShelves] = useState<Shelf[]>([]);
   const [books, setBooks] = useState<BookWithMeta[]>([]);
   const [loading, setLoading] = useState(true);
@@ -190,11 +195,11 @@ export default function ShelfManager() {
     })
   );
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
     try {
       const [configData, booksData] = await Promise.all([
-        window.electronAPI.getConfig(),
-        window.electronAPI.getBooks()
+        configRepo.get(),
+        bookRepo.getAll()
       ]);
       setShelves(configData.shelves);
       setBooks(booksData);
@@ -203,11 +208,11 @@ export default function ShelfManager() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [configRepo, bookRepo]);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   function getBookCount(shelfId: string): number {
     return books.filter(b => b.shelfId === shelfId).length;
@@ -224,9 +229,9 @@ export default function ShelfManager() {
       setShelves(newShelves);
 
       try {
-        const config = await window.electronAPI.getConfig();
+        const config = await configRepo.get();
         config.shelves = newShelves;
-        await window.electronAPI.saveConfig(config);
+        await configRepo.save(config);
       } catch (err) {
         setError('Failed to save shelf order');
         await loadData();
@@ -242,11 +247,11 @@ export default function ShelfManager() {
         return;
       }
 
-      await window.electronAPI.createShelf(shelf);
+      await shelfRepo.create(shelf);
 
-      const config = await window.electronAPI.getConfig();
+      const config = await configRepo.get();
       config.shelves.push(shelf);
-      await window.electronAPI.saveConfig(config);
+      await configRepo.save(config);
 
       setShowAddModal(false);
       await loadData();
@@ -257,11 +262,11 @@ export default function ShelfManager() {
 
   async function handleEditShelf(updatedShelf: Shelf) {
     try {
-      const config = await window.electronAPI.getConfig();
+      const config = await configRepo.get();
       const index = config.shelves.findIndex(s => s.id === updatedShelf.id);
       if (index !== -1) {
         config.shelves[index] = updatedShelf;
-        await window.electronAPI.saveConfig(config);
+        await configRepo.save(config);
       }
 
       setEditingShelf(null);
@@ -281,11 +286,11 @@ export default function ShelfManager() {
     if (!confirm(`Delete shelf "${shelf.label}"? This cannot be undone.`)) return;
 
     try {
-      await window.electronAPI.deleteShelf(shelf.id);
+      await shelfRepo.delete(shelf.id);
 
-      const config = await window.electronAPI.getConfig();
+      const config = await configRepo.get();
       config.shelves = config.shelves.filter(s => s.id !== shelf.id);
-      await window.electronAPI.saveConfig(config);
+      await configRepo.save(config);
 
       await loadData();
     } catch (err) {

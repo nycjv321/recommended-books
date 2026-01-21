@@ -1,8 +1,13 @@
 import { useState, useEffect } from 'react';
 import type { Config } from '@/types';
+import { useConfigRepository, useSettingsRepository } from '@/repositories';
 
 export default function ConfigEditor() {
+  const configRepo = useConfigRepository();
+  const settingsRepo = useSettingsRepository();
+
   const [config, setConfig] = useState<Config | null>(null);
+  const [libraryPath, setLibraryPathState] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     siteTitle: '',
     siteSubtitle: '',
@@ -12,12 +17,17 @@ export default function ConfigEditor() {
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+  const [changingLibrary, setChangingLibrary] = useState(false);
 
   useEffect(() => {
     async function loadConfig() {
       try {
-        const configData = await window.electronAPI.getConfig();
+        const [configData, settings] = await Promise.all([
+          configRepo.get(),
+          settingsRepo.get()
+        ]);
         setConfig(configData);
+        setLibraryPathState(settings.libraryPath);
         setFormData({
           siteTitle: configData.siteTitle,
           siteSubtitle: configData.siteSubtitle,
@@ -30,7 +40,36 @@ export default function ConfigEditor() {
       }
     }
     loadConfig();
-  }, []);
+  }, [configRepo, settingsRepo]);
+
+  async function handleChangeLibraryPath() {
+    setChangingLibrary(true);
+    setError('');
+
+    try {
+      const newPath = await settingsRepo.selectLibraryPath();
+      if (!newPath) {
+        setChangingLibrary(false);
+        return; // User cancelled
+      }
+
+      const validation = await settingsRepo.validateLibraryPath(newPath);
+      if (!validation.isValid) {
+        setError('Selected folder does not contain a valid book library (no config.json found)');
+        setChangingLibrary(false);
+        return;
+      }
+
+      const settings = await settingsRepo.get();
+      settings.libraryPath = newPath;
+      await settingsRepo.save(settings);
+      // Reload the app to use the new library
+      window.location.reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to change library path');
+      setChangingLibrary(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -48,7 +87,7 @@ export default function ConfigEditor() {
         footerText: formData.footerText.trim()
       };
 
-      await window.electronAPI.saveConfig(updatedConfig);
+      await configRepo.save(updatedConfig);
       setConfig(updatedConfig);
       setSuccess(true);
 
@@ -94,6 +133,28 @@ export default function ConfigEditor() {
 
       {error && <div className="alert alert-error">{error}</div>}
       {success && <div className="alert alert-success">Configuration saved successfully!</div>}
+
+      <div className="card" style={{ marginBottom: '24px' }}>
+        <h2 className="card-title" style={{ marginBottom: '16px' }}>Library Location</h2>
+        <div className="library-path-section">
+          <div className="library-path-info">
+            <div className="library-path-label">Current library folder</div>
+            <div className="library-path-value">{libraryPath || 'Not configured'}</div>
+          </div>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={handleChangeLibraryPath}
+            disabled={changingLibrary}
+            style={{ marginLeft: '16px', flexShrink: 0 }}
+          >
+            {changingLibrary ? 'Changing...' : 'Change Location'}
+          </button>
+        </div>
+        <p className="form-hint">
+          Changing the library location will reload the app.
+        </p>
+      </div>
 
       <div className="grid grid-2">
         <div>
