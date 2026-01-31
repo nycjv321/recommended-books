@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Background circle for better visibility -->
+  <circle cx="512" cy="512" r="480" fill="#f5f0e8"/>
+
+  <!-- Book cover -->
+  <rect x="256" y="128" width="512" height="768" rx="32" fill="#4a7c59"/>
+
+  <!-- Book pages -->
+  <rect x="288" y="160" width="448" height="704" rx="16" fill="#FDF5E6"/>
+
+  <!-- Book spine -->
+  <rect x="256" y="128" width="64" height="768" rx="32" fill="#3d6a4a"/>
+
+  <!-- Text lines -->
+  <line x1="352" y1="320" x2="672" y2="320" stroke="#4a7c59" stroke-width="32" stroke-linecap="round"/>
+  <line x1="352" y1="416" x2="672" y2="416" stroke="#4a7c59" stroke-width="32" stroke-linecap="round"/>
+  <line x1="352" y1="512" x2="576" y2="512" stroke="#4a7c59" stroke-width="32" stroke-linecap="round"/>
+</svg>
