@@ -4,21 +4,52 @@ This document explains how the admin app works and how to publish your book coll
 
 ## Architecture Overview
 
-The admin app is a **development tool** that directly edits files in the project. It's not a standalone CMS—changes are made to source files that you commit to git and deploy.
+The admin app manages a **site folder** that contains everything: templates, book data, and build output.
 
 ```
 ┌─────────────────┐     ┌───────────────────┐     ┌─────────────┐
-│   Admin App     │────▶│  packages/site/   │────▶│   Deploy    │
-│   (Electron)    │     │  books/*.json     │     │   dist/     │
+│   Admin App     │────▶│   Site Folder     │────▶│   Deploy    │
+│   (Electron)    │     │   (packages/site) │     │   dist/     │
 └─────────────────┘     └───────────────────┘     └─────────────┘
-     Edits files          Source of truth         Static output
+     Manages              Templates + Data         Static output
 ```
+
+## Site Folder Structure
+
+The admin app points to a site folder containing:
+
+```
+<site-folder>/
+├── index.html              # Template (required)
+├── app.js                  # Template (required)
+├── styles-minimalist.css   # Template (required)
+├── favicon.svg             # Template (optional)
+├── config.json             # Site configuration
+├── books/                  # Your book data
+│   ├── top-5-reads/
+│   │   └── book.json
+│   ├── good-reads/
+│   │   └── another-book.json
+│   └── covers/
+│       └── book-cover.jpg
+├── books-sample/           # Sample data (optional)
+└── dist/                   # Build output (gitignored)
+```
+
+**Template files** (index.html, app.js, CSS) are required and form the site "engine".
+
+**Data files** (config.json, books/) can be initialized by the admin app if missing.
 
 ## How the Admin App Works
 
-### File Operations
+### First Launch
 
-The admin app directly reads and writes files in `packages/site/`:
+1. `SetupWizard` prompts you to select a site folder
+2. Admin validates the folder has required template files
+3. If templates exist but data files are missing, offers to create them
+4. Once configured, the site folder path is saved to app settings
+
+### File Operations
 
 | Operation | Files Affected |
 |-----------|----------------|
@@ -28,28 +59,32 @@ The admin app directly reads and writes files in `packages/site/`:
 | Edit site config | `config.json` |
 | Build site | Generates `dist/` folder |
 
-### Path Resolution
+### Changing the Site Folder
 
-The admin app uses a **hardcoded relative path** to find the site package:
+You can change the site folder via Site Config page:
 
-```
-packages/admin/electron/main.ts → ../site/
-```
-
-This means:
-- The admin app must be run from within the monorepo structure
-- It cannot manage books in an arbitrary directory
-- The packaged app includes both admin and site packages together
+1. Click "Change Location"
+2. Select a folder containing the site template
+3. If valid, the app reloads with the new site folder
 
 ## Typical Workflow
 
-### 1. Edit Your Collection
+### 1. Set Up Your Site Folder
 
-Use the admin app to manage your books:
+**For development**: Point to `packages/site` directly
+
+**For a separate instance**: Copy `packages/site` to another location and point there
 
 ```bash
+# Start the admin app
 npm run dev
+
+# On first launch, select packages/site as your site folder
 ```
+
+### 2. Edit Your Collection
+
+Use the admin app to manage your books:
 
 - **Dashboard**: See collection overview
 - **Books**: Add, edit, delete, and move books between shelves
@@ -58,7 +93,7 @@ npm run dev
 
 Every change is **immediately saved** to the corresponding JSON file.
 
-### 2. Preview Your Changes
+### 3. Preview Your Changes
 
 From the admin app's Build & Preview page:
 
@@ -73,7 +108,7 @@ npm run build:site
 cd packages/site && npx serve dist
 ```
 
-### 3. Commit Your Changes
+### 4. Commit Your Changes
 
 Your book data is stored as JSON files—perfect for version control:
 
@@ -83,9 +118,9 @@ git commit -m "Add new books to collection"
 git push
 ```
 
-### 4. Deploy
+### 5. Deploy
 
-Deploy the `packages/site/dist/` folder to any static hosting.
+Deploy the `dist/` folder to any static hosting.
 
 **Manual deployment:**
 
@@ -97,31 +132,7 @@ aws s3 sync packages/site/dist/ s3://your-bucket --delete
 
 **Automatic deployment:**
 
-The repo includes a GitHub Actions workflow that deploys to S3 on push to main. See [Deployment](#deployment-options) below.
-
-## File Structure
-
-```
-packages/site/
-├── config.json              # Site configuration (editable in admin)
-├── books/                   # Your book data (source of truth)
-│   ├── top-5-reads/
-│   │   ├── book-one.json
-│   │   └── book-two.json
-│   ├── good-reads/
-│   │   └── another-book.json
-│   └── covers/              # Downloaded cover images
-│       ├── book-one.jpg
-│       └── book-two.jpg
-├── books-sample/            # Sample data for testing
-├── dist/                    # Build output (gitignored)
-│   ├── index.html           # Processed HTML
-│   ├── config.json          # Copied
-│   ├── app.js               # Copied
-│   ├── styles-minimalist.css
-│   └── books/               # All books copied here
-└── index.html               # Source template (with {{placeholders}})
-```
+The repo includes a GitHub Actions workflow that deploys to S3 on push to main. See [Deployment Options](#deployment-options) below.
 
 ## Build Process
 
@@ -129,7 +140,7 @@ When you click "Build" or run `npm run build:site`:
 
 1. Read `config.json` for shelves and site metadata
 2. Clean the `dist/` directory
-3. Copy static files (CSS, JS, favicon)
+3. Copy static files (CSS, JS, favicon) from site folder
 4. Process `index.html`, replacing `{{siteTitle}}`, `{{siteSubtitle}}`, `{{footerText}}`
 5. Copy `config.json` to `dist/`
 6. Copy each shelf folder with all book JSON files
@@ -184,9 +195,9 @@ The repo includes `.github/workflows/deploy.yml`. Configure these secrets:
 
 Yes. The admin app is a convenience—you can edit `books/*.json` and `config.json` directly in any text editor. Just follow the [book schema](../README.md#book-json-schema).
 
-### Why doesn't the admin app let me choose a project directory?
+### Can I use a different folder for my books?
 
-The app is designed as part of this monorepo. The path to `packages/site/` is hardcoded relative to the admin package. This keeps the architecture simple and ensures the admin and site are always in sync.
+Yes! Copy `packages/site` to any location, then point the admin app to that folder. This is useful if you want to manage multiple book collections or keep your data separate from the code.
 
 ### What happens if I delete the dist/ folder?
 
@@ -195,3 +206,7 @@ Nothing bad—just rebuild with the admin app or `npm run build:site`. The `dist
 ### Can multiple people edit the collection?
 
 Yes, through git. Each person clones the repo, makes changes with the admin app, commits, and pushes. Merge conflicts in JSON files are easy to resolve.
+
+### What if I select an invalid folder?
+
+The admin app validates that the folder has required template files (index.html, app.js, CSS). If files are missing, it shows an error with the list of missing files. You'll need to select a valid site folder.

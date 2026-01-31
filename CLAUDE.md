@@ -32,7 +32,7 @@ recommended-books/
 │   │       │   ├── ShelfManager.tsx
 │   │       │   ├── ConfigEditor.tsx
 │   │       │   ├── Preview.tsx
-│   │       │   └── SetupWizard.tsx # First-run library path setup
+│   │       │   └── SetupWizard.tsx # First-run site folder setup
 │   │       ├── repositories/       # Data access layer
 │   │       │   ├── interfaces/     # Repository contracts
 │   │       │   ├── electron/       # Electron IPC implementations
@@ -107,7 +107,7 @@ Components → useXRepository() hook → Repository Interface → Implementation
 - `BookRepository` - Book CRUD operations
 - `ShelfRepository` - Shelf creation/deletion
 - `ConfigRepository` - Site configuration
-- `SettingsRepository` - App settings (library path)
+- `SettingsRepository` - App settings (site folder path, validation, initialization)
 - `CoverRepository` - Cover image operations
 - `BuildRepository` - Build site, preview server
 - `OpenLibraryRepository` - External API search
@@ -141,14 +141,38 @@ render(
 );
 ```
 
-### Configurable Library Path
+### Site Folder Architecture
 
-The admin app supports configurable library locations:
+The admin app uses a "site folder" architecture where everything lives in one folder:
 
-- **App settings** stored in: `app.getPath('userData')/settings.json`
-- **Library data** (books, config.json) stored in: user-selected folder
-- On first launch, `SetupWizard` prompts user to select library folder
-- Library path can be changed via Site Config page
+```
+<site-folder>/                    # User selects this folder
+├── index.html                    # Template (required)
+├── app.js                        # Template (required)
+├── styles-minimalist.css         # Template (required)
+├── favicon.svg                   # Template (optional)
+├── config.json                   # Data (created if missing)
+├── books/                        # Data (created if missing)
+│   ├── covers/                   # Local cover images
+│   └── <shelf-folder>/           # Book JSON files per shelf
+├── books-sample/                 # Sample data (optional)
+└── dist/                         # Build output
+```
+
+**Key concepts:**
+- **Template files**: `index.html`, `app.js`, `styles-*.css` - required, these are the site "engine"
+- **Data files**: `config.json`, `books/` - can be initialized by the admin app
+- **App settings** stored in: `app.getPath('userData')/settings.json` (just the site folder path)
+
+**Workflow:**
+1. On first launch, `SetupWizard` prompts user to select a site folder
+2. Validation checks for required template files (index.html, app.js, CSS)
+3. If template exists but data files missing, offers to create them
+4. If invalid folder (missing templates), shows error with missing files list
+5. Site folder path can be changed via Site Config page
+
+**For development**: Point to `packages/site` directly
+**For production**: User copies `packages/site` elsewhere and points to that copy
 
 ### IPC Communication
 
@@ -244,10 +268,18 @@ interface Book {
   publishDate: string;
   pages?: number;
   cover?: string;
-  coverLocal?: string;
+  coverLocal?: string;        // Relative path: "covers/book.jpg"
   notes?: string;
   link?: string;
   clickBehavior: 'overlay' | 'redirect';
+}
+
+interface BookWithMeta extends Book {
+  filePath: string;
+  fileName: string;
+  shelfId: string;
+  shelfLabel: string;
+  coverLocalResolved?: string; // Runtime-only: base64 data URL for display in admin
 }
 
 interface Shelf {
@@ -264,7 +296,15 @@ interface Config {
 }
 
 interface AppSettings {
-  libraryPath: string | null;
+  libraryPath: string | null;  // Actually the site folder path
+}
+
+interface SiteValidation {
+  isValid: boolean;            // Has required template files
+  hasTemplateFiles: boolean;
+  hasConfig: boolean;
+  hasBooks: boolean;
+  missingFiles: string[];      // List of missing required files
 }
 ```
 
@@ -276,18 +316,22 @@ interface AppSettings {
 - **Vite**: Fast bundler for development
 - **Repository pattern**: Testable data access layer with interface/implementation separation
 - **IPC security**: contextIsolation and preload scripts
-- **Configurable library path**: Stored in userData, separate from library content
+- **Site folder architecture**: Admin points to a site folder containing template + data + dist output
+- **No bundled templates**: Admin doesn't bundle site templates; user points to their site folder
 - **Folder-based shelves**: Book's shelf determined by folder, not JSON field
+- **Base64 covers in admin**: Cover images converted to data URLs for display in Electron
 - **Pure utilities in lib/**: No data access in lib/ - only constants and pure functions
 - **System fonts + Inter**: Fast loading with modern typography
 
 ## Things to Avoid
 
-- Don't manually edit `packages/site/dist/` - it gets cleaned on each build
+- Don't manually edit `dist/` - it gets cleaned on each build
 - Don't add `shelf` field to book JSON - it's derived from folder
 - Don't serve from site root - always serve from `dist/`
 - Don't call `window.electronAPI` directly in components - use repository hooks
 - Don't add data access functions to `lib/` - use repositories instead
+- Don't store `coverLocalResolved` in book JSON - it's a runtime-only field
+- Don't assume admin has bundled templates - it uses the configured site folder
 
 ## Dependencies
 

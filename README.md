@@ -24,6 +24,8 @@ npm install
 npm run dev
 ```
 
+On first launch, select `packages/site` as your site folder. The admin app will use this folder for templates, book data, and build output.
+
 Use the admin app to add books, organize shelves, build, and preview your site.
 
 For detailed workflow and deployment instructions, see **[docs/workflow.md](docs/workflow.md)**.
