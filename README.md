@@ -1,5 +1,9 @@
 # My Reads
 
+[![GitHub Release](https://img.shields.io/github/v/release/nycjv321/recommended-books?include_prereleases&label=release)](https://github.com/nycjv321/recommended-books/releases)
+[![Release](https://github.com/nycjv321/recommended-books/actions/workflows/release.yml/badge.svg)](https://github.com/nycjv321/recommended-books/actions/workflows/release.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)]()
 [![Built with Claude](https://img.shields.io/badge/Built%20with-Claude-blueviolet)](https://claude.ai)
 
 A minimalist static website admin tool and site generator to showcase book recommendations, with an Electron desktop app for management.
