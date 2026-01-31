@@ -12,27 +12,35 @@
     "package": "tsc && vite build && electron-builder",
     "package:mac": "tsc && vite build && electron-builder --mac",
     "package:win": "tsc && vite build && electron-builder --win",
-    "package:linux": "tsc && vite build && electron-builder --linux"
+    "package:linux": "tsc && vite build && electron-builder --linux",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage"
   },
   "dependencies": {
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-router-dom": "^6.28.0",
     "@dnd-kit/core": "^6.1.0",
     "@dnd-kit/sortable": "^8.0.0",
-    "@dnd-kit/utilities": "^3.2.2"
+    "@dnd-kit/utilities": "^3.2.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^20.17.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.3",
+    "@vitest/ui": "^4.0.18",
     "electron": "33.4.11",
     "electron-builder": "^25.1.8",
+    "jsdom": "^27.4.0",
     "typescript": "^5.6.3",
     "vite": "^5.4.10",
     "vite-plugin-electron": "^0.28.8",
-    "vite-plugin-electron-renderer": "^0.14.6"
+    "vite-plugin-electron-renderer": "^0.14.6",
+    "vitest": "^4.0.18"
   },
   "build": {
     "appId": "com.recommended-books.admin",

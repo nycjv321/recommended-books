@@ -1,0 +1,38 @@
+import '@testing-library/jest-dom';
+import { vi } from 'vitest';
+
+// Mock window.electronAPI for component tests
+vi.stubGlobal('electronAPI', {
+  getBooks: vi.fn(),
+  getBook: vi.fn(),
+  saveBook: vi.fn(),
+  deleteBook: vi.fn(),
+  moveBook: vi.fn(),
+  getConfig: vi.fn(),
+  saveConfig: vi.fn(),
+  createShelf: vi.fn(),
+  deleteShelf: vi.fn(),
+  reorderShelves: vi.fn(),
+  downloadCover: vi.fn(),
+  deleteCover: vi.fn(),
+  downloadAllCovers: vi.fn(),
+  searchOpenLibrary: vi.fn(),
+  buildSite: vi.fn(),
+  startPreviewServer: vi.fn(),
+  stopPreviewServer: vi.fn(),
+  openInBrowser: vi.fn(),
+  openInFileExplorer: vi.fn(),
+  getSitePath: vi.fn(),
+  getDistPath: vi.fn(),
+  checkExistingBooks: vi.fn(),
+  loadSampleData: vi.fn(),
+  removeSampleData: vi.fn(),
+  getSettings: vi.fn(),
+  saveSettings: vi.fn(),
+  selectLibraryPath: vi.fn(),
+  validateLibraryPath: vi.fn(),
+  initializeLibrary: vi.fn(),
+  createNewSite: vi.fn(),
+  checkTemplateUpdates: vi.fn(),
+  updateSiteTemplate: vi.fn(),
+});
