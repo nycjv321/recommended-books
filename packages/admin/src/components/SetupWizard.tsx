@@ -6,7 +6,7 @@ interface SetupWizardProps {
   onComplete: () => void;
 }
 
-type WizardStep = 'welcome' | 'invalid-site' | 'initialize-data';
+type WizardStep = 'welcome' | 'create-new' | 'invalid-site' | 'initialize-data';
 
 export default function SetupWizard({ onComplete }: SetupWizardProps) {
   const settingsRepo = useSettingsRepository();
@@ -16,6 +16,35 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
   const [validation, setValidation] = useState<SiteValidation | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  async function handleCreateNewSite() {
+    setError(null);
+    const path = await settingsRepo.selectSitePath();
+
+    if (!path) {
+      return; // User cancelled
+    }
+
+    setSelectedPath(path);
+    setStep('create-new');
+  }
+
+  async function handleConfirmCreateNewSite() {
+    if (!selectedPath) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      await settingsRepo.createNewSite(selectedPath);
+      await settingsRepo.save({ libraryPath: selectedPath });
+      onComplete();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create new site');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function handleSelectFolder() {
     setError(null);
@@ -79,6 +108,49 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
         <div className="setup-wizard-content">
           <div className="loading">
             <div className="spinner"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 'create-new') {
+    return (
+      <div className="setup-wizard">
+        <div className="setup-wizard-content">
+          <div className="setup-wizard-icon">
+            <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <h1 className="setup-wizard-title">Create New Site</h1>
+          <p className="setup-wizard-subtitle">
+            A new book recommendation site will be created in the selected folder.
+            This will copy the template files and initialize the data structure.
+          </p>
+          <div className="setup-wizard-path">
+            {selectedPath}
+          </div>
+
+          <div style={{ marginTop: '16px', textAlign: 'left', background: 'var(--color-bg)', padding: '12px', borderRadius: 'var(--radius-md)', fontSize: '13px' }}>
+            <strong>Will create:</strong>
+            <ul style={{ margin: '8px 0 0', paddingLeft: '20px', color: 'var(--color-text-secondary)' }}>
+              <li>index.html, app.js, styles-minimalist.css (template)</li>
+              <li>config.json (site configuration)</li>
+              <li>books/ folder (for your book data)</li>
+              <li>scripts/ folder (build tools)</li>
+            </ul>
+          </div>
+
+          {error && <div className="alert alert-error">{error}</div>}
+
+          <div className="setup-wizard-actions">
+            <button className="btn btn-primary" onClick={handleConfirmCreateNewSite}>
+              Create Site
+            </button>
+            <button className="btn btn-secondary" onClick={handleChooseDifferent}>
+              Choose Different Folder
+            </button>
           </div>
         </div>
       </div>
@@ -177,18 +249,23 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
         </div>
         <h1 className="setup-wizard-title">Welcome to Book Admin</h1>
         <p className="setup-wizard-subtitle">
-          To get started, select your site folder. This should be a folder containing
-          the site template (e.g., <code>packages/site</code> from the repo).
+          Create a new book recommendation site or open an existing one.
         </p>
 
         {error && <div className="alert alert-error">{error}</div>}
 
-        <div className="setup-wizard-actions">
-          <button className="btn btn-primary btn-lg" onClick={handleSelectFolder}>
+        <div className="setup-wizard-actions" style={{ flexDirection: 'column', gap: '12px' }}>
+          <button className="btn btn-primary btn-lg" onClick={handleCreateNewSite}>
+            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Create New Site
+          </button>
+          <button className="btn btn-secondary btn-lg" onClick={handleSelectFolder}>
             <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
             </svg>
-            Select Site Folder
+            Open Existing Site
           </button>
         </div>
       </div>

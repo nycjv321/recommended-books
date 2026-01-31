@@ -2,7 +2,7 @@
 
 [![Built with Claude](https://img.shields.io/badge/Built%20with-Claude-blueviolet)](https://claude.ai)
 
-A minimalist static website to showcase book recommendations, with an Electron desktop app for management.
+A minimalist static website admin tool and site generator to showcase book recommendations, with an Electron desktop app for management.
 
 ## Example
 
@@ -12,7 +12,19 @@ See [Javier's Recommended Books](https://github.com/nycjv321/javiers-recommended
 
 **Website**: Clean design, customizable shelves, dark mode, responsive layout, book detail overlays
 
-**Admin App**: Desktop app with Open Library search, drag-and-drop shelves, built-in preview server
+**Admin App**:
+- Create new sites or open existing ones
+- Open Library search for book metadata
+- Drag-and-drop shelf organization
+- Download covers locally for offline/cached images
+- Built-in preview server
+- Template version tracking and updates
+
+## Screenshots
+
+| Manage Books | Shelf Management | Site Config |
+|:---:|:---:|:---:|
+| ![Manage Books](docs/manage-books.png) | ![Shelf Management](docs/shelf-management.png) | ![Site Config](docs/site-config.png) |
 
 ## Quick Start
 
@@ -24,7 +36,9 @@ npm install
 npm run dev
 ```
 
-On first launch, select `packages/site` as your site folder. The admin app will use this folder for templates, book data, and build output.
+On first launch, choose:
+- **Create New Site**: Select an empty folder and the admin will set up a complete site with templates and data structure
+- **Open Existing Site**: Select a folder with an existing site (e.g., `packages/site`)
 
 Use the admin app to add books, organize shelves, build, and preview your site.
 
@@ -53,10 +67,12 @@ recommended-books/
 | `publishDate` | string | No | ISO date (YYYY-MM-DD) |
 | `pages` | number | No | Page count |
 | `cover` | string | No | URL to cover image |
-| `coverLocal` | string | No | Local path (e.g., `books/covers/my-book.jpg`) |
+| `coverLocal` | string | No | Local path (e.g., `covers/my-book.jpg`) |
 | `notes` | string | No | Your personal notes |
 | `link` | string | No | External URL |
 | `clickBehavior` | string | No | `"overlay"` (default) or `"redirect"` |
+
+**Cover Images**: You can use remote URLs (`cover`) or local files (`coverLocal`). Use the "Download All Covers Locally" feature in Site Config to cache all remote covers locally—this updates books to use `coverLocal` and avoids relying on external image sources.
 
 ## Customization
 
@@ -87,15 +103,28 @@ Edit CSS variables in `packages/site/styles-minimalist.css`:
 }
 ```
 
-## Deployment
+## Releases
 
-Build and deploy the `packages/site/dist/` folder to any static hosting (GitHub Pages, Netlify, S3, etc.).
+Pre-built admin app binaries are available on the [Releases](../../releases) page for macOS, Windows, and Linux.
+
+Releases are automated—trigger via **Actions** → **Release** → **Run workflow** and select the version bump type.
+
+### Building from Source
 
 ```bash
-npm run build:site
+npm install
+cd packages/admin
+npm run package        # Build for current platform
+npm run package:mac    # macOS (DMG, ZIP)
+npm run package:win    # Windows (NSIS installer, portable)
+npm run package:linux  # Linux (AppImage, DEB)
 ```
 
-See **[docs/workflow.md](docs/workflow.md)** for detailed deployment options including GitHub Actions.
+### Deploying Your Site
+
+After creating and building your site with the admin app, deploy the `dist/` folder to any static hosting (GitHub Pages, Netlify, S3, etc.).
+
+See **[docs/workflow.md](docs/workflow.md)** for detailed deployment options.
 
 ## License
 

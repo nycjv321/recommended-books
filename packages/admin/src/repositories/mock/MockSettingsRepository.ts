@@ -1,5 +1,5 @@
 import type { AppSettings } from '@/types';
-import type { SettingsRepository, SiteValidation } from '../interfaces';
+import type { SettingsRepository, SiteValidation, TemplateUpdateInfo } from '../interfaces';
 
 export class MockSettingsRepository implements SettingsRepository {
   private settings: AppSettings = {
@@ -8,6 +8,11 @@ export class MockSettingsRepository implements SettingsRepository {
 
   private validPaths: Set<string> = new Set(['/mock/site']);
   private selectedPath: string | null = null;
+  private templateUpdateInfo: TemplateUpdateInfo = {
+    hasUpdate: false,
+    currentVersion: '1.0.0',
+    latestVersion: '1.0.0',
+  };
 
   setSettings(settings: AppSettings): void {
     this.settings = { ...settings };
@@ -19,6 +24,10 @@ export class MockSettingsRepository implements SettingsRepository {
 
   setSelectedPath(path: string | null): void {
     this.selectedPath = path;
+  }
+
+  setTemplateUpdateInfo(info: TemplateUpdateInfo): void {
+    this.templateUpdateInfo = { ...info };
   }
 
   async get(): Promise<AppSettings> {
@@ -45,6 +54,24 @@ export class MockSettingsRepository implements SettingsRepository {
   }
 
   async initializeSiteData(_path: string): Promise<{ success: boolean }> {
+    return { success: true };
+  }
+
+  async createNewSite(path: string): Promise<{ success: boolean }> {
+    this.validPaths.add(path);
+    return { success: true };
+  }
+
+  async checkTemplateUpdates(_sitePath: string): Promise<TemplateUpdateInfo> {
+    return { ...this.templateUpdateInfo };
+  }
+
+  async updateSiteTemplate(_sitePath: string): Promise<{ success: boolean }> {
+    this.templateUpdateInfo = {
+      ...this.templateUpdateInfo,
+      hasUpdate: false,
+      currentVersion: this.templateUpdateInfo.latestVersion,
+    };
     return { success: true };
   }
 }

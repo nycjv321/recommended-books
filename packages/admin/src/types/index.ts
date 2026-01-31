@@ -78,6 +78,13 @@ export interface ElectronAPI {
   // Cover operations
   downloadCover: (url: string, fileName: string) => Promise<string>;
   deleteCover: (coverPath: string) => Promise<void>;
+  downloadAllCovers: () => Promise<{
+    success: boolean;
+    downloaded: number;
+    skipped: number;
+    failed: number;
+    errors: string[];
+  }>;
 
   // Open Library
   searchOpenLibrary: (query: string) => Promise<OpenLibrarySearchResult[]>;
@@ -102,8 +109,23 @@ export interface ElectronAPI {
   getSettings: () => Promise<AppSettings>;
   saveSettings: (settings: AppSettings) => Promise<void>;
   selectLibraryPath: () => Promise<string | null>;
-  validateLibraryPath: (libraryPath: string) => Promise<{ isValid: boolean; isEmpty: boolean }>;
+  validateLibraryPath: (libraryPath: string) => Promise<{
+    isValid: boolean;
+    hasTemplateFiles: boolean;
+    hasConfig: boolean;
+    hasBooks: boolean;
+    missingFiles: string[];
+  }>;
   initializeLibrary: (libraryPath: string) => Promise<{ success: boolean }>;
+
+  // Template management
+  createNewSite: (targetPath: string) => Promise<{ success: boolean }>;
+  checkTemplateUpdates: (sitePath: string) => Promise<{
+    hasUpdate: boolean;
+    currentVersion: string | null;
+    latestVersion: string | null;
+  }>;
+  updateSiteTemplate: (sitePath: string) => Promise<{ success: boolean }>;
 }
 
 declare global {

@@ -34,6 +34,47 @@ function saveSettings(settings: AppSettings): void {
 }
 
 // ============================================
+// Bundled Template Path Functions
+// ============================================
+
+function getBundledTemplatePath(): string {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, 'site-template');
+  }
+  // Dev mode: use packages/site directly
+  return path.join(__dirname, '../../site');
+}
+
+interface TemplateVersion {
+  version: string;
+  updatedAt: string;
+}
+
+function getTemplateVersion(templatePath: string): string | null {
+  const versionFile = path.join(templatePath, 'template-version.json');
+  if (fs.existsSync(versionFile)) {
+    try {
+      const data: TemplateVersion = JSON.parse(fs.readFileSync(versionFile, 'utf-8'));
+      return data.version;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+function compareVersions(a: string, b: string): number {
+  // Simple semver comparison: returns 1 if a > b, -1 if a < b, 0 if equal
+  const partsA = a.split('.').map(Number);
+  const partsB = b.split('.').map(Number);
+  for (let i = 0; i < 3; i++) {
+    if ((partsA[i] || 0) > (partsB[i] || 0)) return 1;
+    if ((partsA[i] || 0) < (partsB[i] || 0)) return -1;
+  }
+  return 0;
+}
+
+// ============================================
 // Dynamic Path Functions (use configured site path)
 // ============================================
 
@@ -389,6 +430,158 @@ ipcMain.handle('delete-cover', async (_event, coverPath: string): Promise<void> 
   if (fs.existsSync(fullPath)) {
     fs.unlinkSync(fullPath);
   }
+});
+
+// Helper function to download a file and follow redirects
+function downloadFile(url: string, filePath: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const protocol = url.startsWith('https') ? https : http;
+
+    const request = protocol.get(url, (response) => {
+      // Handle redirects
+      if (response.statusCode && response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+        downloadFile(response.headers.location, filePath).then(resolve).catch(reject);
+        return;
+      }
+
+      if (response.statusCode !== 200) {
+        reject(new Error(`HTTP ${response.statusCode}`));
+        return;
+      }
+
+      const file = fs.createWriteStream(filePath);
+      response.pipe(file);
+
+      file.on('finish', () => {
+        file.close();
+        resolve();
+      });
+
+      file.on('error', (err) => {
+        fs.unlinkSync(filePath);
+        reject(err);
+      });
+    });
+
+    request.on('error', reject);
+  });
+}
+
+// Generate a safe filename from a URL
+function generateCoverFileName(url: string, bookTitle: string): string {
+  // Try to get extension from URL
+  const urlPath = new URL(url).pathname;
+  let ext = path.extname(urlPath).toLowerCase();
+
+  // Default to .jpg if no extension or unrecognized
+  if (!['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)) {
+    ext = '.jpg';
+  }
+
+  // Create safe filename from book title
+  const safeTitle = bookTitle
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .substring(0, 50);
+
+  return `${safeTitle}${ext}`;
+}
+
+ipcMain.handle('download-all-covers', async (): Promise<{
+  success: boolean;
+  downloaded: number;
+  skipped: number;
+  failed: number;
+  errors: string[];
+}> => {
+  const configPath = getConfigPath();
+  const config: Config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+  const booksPath = getBooksPath();
+  const coversDir = path.join(booksPath, 'covers');
+
+  // Ensure covers directory exists
+  if (!fs.existsSync(coversDir)) {
+    fs.mkdirSync(coversDir, { recursive: true });
+  }
+
+  let downloaded = 0;
+  let skipped = 0;
+  let failed = 0;
+  const errors: string[] = [];
+
+  for (const shelf of config.shelves) {
+    const shelfPath = path.join(booksPath, shelf.folder);
+
+    if (!fs.existsSync(shelfPath)) {
+      continue;
+    }
+
+    const files = fs.readdirSync(shelfPath).filter(f => f.endsWith('.json'));
+
+    for (const fileName of files) {
+      const filePath = path.join(shelfPath, fileName);
+      try {
+        const content = fs.readFileSync(filePath, 'utf-8');
+        const book: Book = JSON.parse(content);
+
+        // Skip if no remote cover URL
+        if (!book.cover) {
+          skipped++;
+          continue;
+        }
+
+        // Skip if already has a local cover
+        if (book.coverLocal) {
+          const localCoverPath = path.join(booksPath, book.coverLocal);
+          if (fs.existsSync(localCoverPath)) {
+            skipped++;
+            continue;
+          }
+        }
+
+        // Generate filename and download
+        const coverFileName = generateCoverFileName(book.cover, book.title);
+        const coverFilePath = path.join(coversDir, coverFileName);
+
+        // Check if file already exists (avoid duplicates)
+        let finalFileName = coverFileName;
+        let counter = 1;
+        while (fs.existsSync(path.join(coversDir, finalFileName))) {
+          const ext = path.extname(coverFileName);
+          const base = path.basename(coverFileName, ext);
+          finalFileName = `${base}-${counter}${ext}`;
+          counter++;
+        }
+
+        const finalFilePath = path.join(coversDir, finalFileName);
+
+        try {
+          await downloadFile(book.cover, finalFilePath);
+
+          // Update book with coverLocal
+          book.coverLocal = `covers/${finalFileName}`;
+          fs.writeFileSync(filePath, JSON.stringify(book, null, 2) + '\n');
+
+          downloaded++;
+        } catch (downloadErr) {
+          failed++;
+          errors.push(`${book.title}: ${downloadErr instanceof Error ? downloadErr.message : 'Download failed'}`);
+        }
+      } catch (e) {
+        failed++;
+        errors.push(`${fileName}: ${e instanceof Error ? e.message : 'Unknown error'}`);
+      }
+    }
+  }
+
+  return {
+    success: failed === 0,
+    downloaded,
+    skipped,
+    failed,
+    errors: errors.slice(0, 10) // Limit errors to first 10
+  };
 });
 
 // ============================================
@@ -895,4 +1088,110 @@ ipcMain.handle('remove-sample-data', async (): Promise<{ success: boolean; messa
       booksRemoved: 0
     };
   }
+});
+
+// ============================================
+// Template Management IPC Handlers
+// ============================================
+
+ipcMain.handle('create-new-site', async (_event, targetPath: string): Promise<{ success: boolean }> => {
+  const templatePath = getBundledTemplatePath();
+
+  // Template files to copy (not user data)
+  const templateFiles = ['index.html', 'app.js', 'styles-minimalist.css', 'favicon.svg', 'template-version.json'];
+
+  for (const file of templateFiles) {
+    const src = path.join(templatePath, file);
+    const dest = path.join(targetPath, file);
+    if (fs.existsSync(src)) {
+      fs.copyFileSync(src, dest);
+    }
+  }
+
+  // Copy scripts folder
+  const scriptsDir = path.join(templatePath, 'scripts');
+  if (fs.existsSync(scriptsDir)) {
+    const destScriptsDir = path.join(targetPath, 'scripts');
+    fs.mkdirSync(destScriptsDir, { recursive: true });
+    for (const file of fs.readdirSync(scriptsDir)) {
+      fs.copyFileSync(path.join(scriptsDir, file), path.join(destScriptsDir, file));
+    }
+  }
+
+  // Initialize data files (config.json and books/)
+  const configPath = path.join(targetPath, 'config.json');
+  const booksPath = path.join(targetPath, 'books');
+
+  if (!fs.existsSync(configPath)) {
+    const defaultConfig = {
+      siteTitle: 'My Reads',
+      siteSubtitle: 'Personal book recommendations',
+      footerText: '',
+      shelves: []
+    };
+    fs.writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2));
+  }
+
+  if (!fs.existsSync(booksPath)) {
+    fs.mkdirSync(booksPath, { recursive: true });
+  }
+
+  // Create covers directory
+  const coversPath = path.join(booksPath, 'covers');
+  if (!fs.existsSync(coversPath)) {
+    fs.mkdirSync(coversPath, { recursive: true });
+  }
+
+  return { success: true };
+});
+
+ipcMain.handle('check-template-updates', async (_event, sitePath: string): Promise<{
+  hasUpdate: boolean;
+  currentVersion: string | null;
+  latestVersion: string | null;
+}> => {
+  const bundledVersion = getTemplateVersion(getBundledTemplatePath());
+  const siteVersion = getTemplateVersion(sitePath);
+
+  // If bundled has version but site doesn't, treat as update available
+  // (site is from before versioning was introduced)
+  let hasUpdate = false;
+  if (bundledVersion) {
+    if (!siteVersion) {
+      // Site has no version file - it's older than versioning
+      hasUpdate = true;
+    } else {
+      // Both have versions - compare them
+      hasUpdate = compareVersions(bundledVersion, siteVersion) > 0;
+    }
+  }
+
+  return { hasUpdate, currentVersion: siteVersion, latestVersion: bundledVersion };
+});
+
+ipcMain.handle('update-site-template', async (_event, sitePath: string): Promise<{ success: boolean }> => {
+  const templatePath = getBundledTemplatePath();
+
+  // Only update template files, never touch user data
+  const templateFiles = ['index.html', 'app.js', 'styles-minimalist.css', 'favicon.svg', 'template-version.json'];
+
+  for (const file of templateFiles) {
+    const src = path.join(templatePath, file);
+    const dest = path.join(sitePath, file);
+    if (fs.existsSync(src)) {
+      fs.copyFileSync(src, dest);
+    }
+  }
+
+  // Update scripts folder
+  const scriptsDir = path.join(templatePath, 'scripts');
+  if (fs.existsSync(scriptsDir)) {
+    const destScriptsDir = path.join(sitePath, 'scripts');
+    fs.mkdirSync(destScriptsDir, { recursive: true });
+    for (const file of fs.readdirSync(scriptsDir)) {
+      fs.copyFileSync(path.join(scriptsDir, file), path.join(destScriptsDir, file));
+    }
+  }
+
+  return { success: true };
 });

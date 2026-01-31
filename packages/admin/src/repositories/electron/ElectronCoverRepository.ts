@@ -1,4 +1,4 @@
-import type { CoverRepository } from '../interfaces';
+import type { CoverRepository, DownloadAllCoversResult } from '../interfaces';
 
 export class ElectronCoverRepository implements CoverRepository {
   async download(url: string, fileName: string): Promise<string> {
@@ -7,5 +7,9 @@ export class ElectronCoverRepository implements CoverRepository {
 
   async delete(coverPath: string): Promise<void> {
     return window.electronAPI.deleteCover(coverPath);
+  }
+
+  async downloadAll(): Promise<DownloadAllCoversResult> {
+    return window.electronAPI.downloadAllCovers();
   }
 }

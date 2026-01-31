@@ -8,10 +8,19 @@ export interface SiteValidation {
   missingFiles: string[];
 }
 
+export interface TemplateUpdateInfo {
+  hasUpdate: boolean;
+  currentVersion: string | null;
+  latestVersion: string | null;
+}
+
 export interface SettingsRepository {
   get(): Promise<AppSettings>;
   save(settings: AppSettings): Promise<void>;
   selectSitePath(): Promise<string | null>;
   validateSitePath(path: string): Promise<SiteValidation>;
   initializeSiteData(path: string): Promise<{ success: boolean }>;
+  createNewSite(path: string): Promise<{ success: boolean }>;
+  checkTemplateUpdates(sitePath: string): Promise<TemplateUpdateInfo>;
+  updateSiteTemplate(sitePath: string): Promise<{ success: boolean }>;
 }

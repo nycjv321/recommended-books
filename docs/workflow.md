@@ -1,29 +1,42 @@
 # Workflow and Release Process
 
-This document explains how the admin app works and how to publish your book collection.
+This document explains how the admin app works, how releases are published, and how to deploy your book collection.
 
 ## Architecture Overview
 
-The admin app manages a **site folder** that contains everything: templates, book data, and build output.
+The admin app is a standalone Electron application that bundles the site template. It can create new sites or manage existing ones.
 
 ```
-┌─────────────────┐     ┌───────────────────┐     ┌─────────────┐
-│   Admin App     │────▶│   Site Folder     │────▶│   Deploy    │
-│   (Electron)    │     │   (packages/site) │     │   dist/     │
-└─────────────────┘     └───────────────────┘     └─────────────┘
-     Manages              Templates + Data         Static output
+┌─────────────────────────┐
+│  This Repo              │
+│  ┌───────────────────┐  │     ┌───────────────────┐     ┌─────────────┐
+│  │   Admin App       │──┼────▶│   Your Site       │────▶│   Deploy    │
+│  │   (Electron)      │  │     │   (any folder)    │     │   dist/     │
+│  └───────────────────┘  │     └───────────────────┘     └─────────────┘
+│  + Bundled Template     │       Templates + Data         Static output
+│  + GitHub Releases      │
+└─────────────────────────┘
 ```
+
+**Key points**:
+- The admin app is released as pre-built binaries (macOS, Windows, Linux)
+- Download from [GitHub Releases](../../releases) or build from source
+- The app can create a complete site in any empty folder
+- Your book data lives in your own site folder (not this repo)
 
 ## Site Folder Structure
 
-The admin app points to a site folder containing:
+When you create a new site or open an existing one, the folder contains:
 
 ```
 <site-folder>/
-├── index.html              # Template (required)
-├── app.js                  # Template (required)
-├── styles-minimalist.css   # Template (required)
+├── index.html              # Template
+├── app.js                  # Template
+├── styles-minimalist.css   # Template
 ├── favicon.svg             # Template (optional)
+├── template-version.json   # Version tracking for updates
+├── scripts/
+│   └── build-index.js      # Build tools
 ├── config.json             # Site configuration
 ├── books/                  # Your book data
 │   ├── top-5-reads/
@@ -36,16 +49,18 @@ The admin app points to a site folder containing:
 └── dist/                   # Build output (gitignored)
 ```
 
-**Template files** (index.html, app.js, CSS) are required and form the site "engine".
+**Template files** (index.html, app.js, CSS, scripts/) form the site "engine" and are copied from the bundled template.
 
-**Data files** (config.json, books/) can be initialized by the admin app if missing.
+**Data files** (config.json, books/) contain your book collection and are created/managed by the admin app.
 
 ## How the Admin App Works
 
 ### First Launch
 
-1. `SetupWizard` prompts you to select a site folder
-2. Admin validates the folder has required template files
+1. `SetupWizard` prompts you with two options:
+   - **Create New Site**: Select an empty folder → admin copies bundled template and initializes data
+   - **Open Existing Site**: Select a folder with an existing site
+2. For existing sites, admin validates template files are present
 3. If templates exist but data files are missing, offers to create them
 4. Once configured, the site folder path is saved to app settings
 
@@ -55,31 +70,46 @@ The admin app points to a site folder containing:
 |-----------|----------------|
 | Add/edit books | `books/{shelf-folder}/{book}.json` |
 | Download covers | `books/covers/{image}.jpg` |
+| Download all covers | Downloads all remote covers to `books/covers/`, updates book JSON |
 | Create/delete shelves | `books/{shelf-folder}/` directories |
 | Edit site config | `config.json` |
 | Build site | Generates `dist/` folder |
+| Update template | Replaces template files (preserves books/config) |
 
 ### Changing the Site Folder
 
 You can change the site folder via Site Config page:
 
 1. Click "Change Location"
-2. Select a folder containing the site template
+2. Select a folder containing the site template (or create a new site)
 3. If valid, the app reloads with the new site folder
+
+### Template Updates
+
+The admin app tracks template versions and can update your site's template files:
+
+1. Go to Site Config
+2. Check current template version
+3. Click "Check for Updates" to compare with bundled version
+4. If update available, click "Update Template"
+
+Template updates only replace engine files (HTML, JS, CSS, scripts)—your books and configuration are preserved.
 
 ## Typical Workflow
 
-### 1. Set Up Your Site Folder
+### 1. Set Up Your Site
 
-**For development**: Point to `packages/site` directly
-
-**For a separate instance**: Copy `packages/site` to another location and point there
-
+**Option A - Create a new site** (recommended for new users):
 ```bash
-# Start the admin app
 npm run dev
+# Choose "Create New Site" → select an empty folder
+# Admin copies template and creates data structure
+```
 
-# On first launch, select packages/site as your site folder
+**Option B - Use existing site** (for development or existing data):
+```bash
+npm run dev
+# Choose "Open Existing Site" → select packages/site or your site folder
 ```
 
 ### 2. Edit Your Collection
@@ -89,9 +119,20 @@ Use the admin app to manage your books:
 - **Dashboard**: See collection overview
 - **Books**: Add, edit, delete, and move books between shelves
 - **Shelves**: Create shelves and reorder with drag-and-drop
-- **Site Config**: Edit title, subtitle, and footer text
+- **Site Config**: Edit title, subtitle, footer text, and manage covers
 
 Every change is **immediately saved** to the corresponding JSON file.
+
+### 2b. Cache Cover Images (Optional)
+
+To avoid relying on external image sources:
+
+1. Go to **Site Config**
+2. Click **Download All Covers Locally**
+3. All remote cover images are downloaded to `books/covers/`
+4. Book JSON files are updated to use local paths
+
+This ensures your site works even if external image URLs become unavailable.
 
 ### 3. Preview Your Changes
 
@@ -118,21 +159,17 @@ git commit -m "Add new books to collection"
 git push
 ```
 
-### 5. Deploy
+### 5. Deploy Your Site
 
-Deploy the `dist/` folder to any static hosting.
-
-**Manual deployment:**
+Deploy your site's `dist/` folder to any static hosting.
 
 ```bash
 # GitHub Pages, Netlify, Vercel - upload dist/ folder
 # S3
-aws s3 sync packages/site/dist/ s3://your-bucket --delete
+aws s3 sync your-site/dist/ s3://your-bucket --delete
 ```
 
-**Automatic deployment:**
-
-The repo includes a GitHub Actions workflow that deploys to S3 on push to main. See [Deployment Options](#deployment-options) below.
+See [Site Deployment Options](#site-deployment-options) for more details.
 
 ## Build Process
 
@@ -157,37 +194,58 @@ npm run build:site -- --sample
 
 This uses `books-sample/` instead of `books/`, useful for testing or demos.
 
-## Deployment Options
+## Admin App Releases
+
+Pre-built admin app binaries are published to [GitHub Releases](../../releases) for macOS, Windows, and Linux.
+
+### Creating a Release
+
+1. Go to **Actions** → **Release** workflow
+2. Click **Run workflow**
+3. Select version bump type: `patch`, `minor`, or `major`
+4. Click **Run workflow**
+
+The workflow automatically:
+1. Bumps the version in `package.json`
+2. Commits and tags the release
+3. Builds for macOS (DMG, ZIP), Windows (NSIS, portable), and Linux (AppImage, DEB)
+4. Publishes all artifacts to GitHub Releases
+5. Auto-generates release notes from commits
+
+### Building Locally
+
+```bash
+cd packages/admin
+npm run package        # Build for current platform
+npm run package:mac    # macOS only
+npm run package:win    # Windows only
+npm run package:linux  # Linux only
+```
+
+Output goes to `packages/admin/out/`.
+
+## Site Deployment Options
+
+After building your site with the admin app, deploy the `dist/` folder.
 
 ### GitHub Pages
 
-1. Build the site: `npm run build:site`
-2. Push `dist/` to a `gh-pages` branch, or configure GitHub Pages to serve from `packages/site/dist/`
+1. Build the site in the admin app
+2. Push `dist/` to a `gh-pages` branch or configure GitHub Pages to serve from your site folder
 
 ### Netlify / Vercel
 
-1. Connect your repository
-2. Set build command: `npm run build:site`
-3. Set publish directory: `packages/site/dist`
+1. Push your site folder to a repository
+2. Connect to Netlify/Vercel
+3. Set publish directory to `dist`
 
 ### Amazon S3
 
-Manual:
-
 ```bash
-aws s3 sync packages/site/dist/ s3://your-bucket --delete
+aws s3 sync your-site/dist/ s3://your-bucket --delete
 ```
 
-Automatic (GitHub Actions):
-
-The repo includes `.github/workflows/deploy.yml`. Configure these secrets:
-
-| Secret | Description |
-|--------|-------------|
-| `AWS_ACCESS_KEY_ID` | IAM user access key |
-| `AWS_SECRET_ACCESS_KEY` | IAM user secret key |
-| `AWS_REGION` | e.g., `us-east-1` |
-| `S3_BUCKET_NAME` | Your bucket name |
+For automatic deployments, set up a GitHub Actions workflow in your site's repository.
 
 ## FAQ
 
@@ -197,7 +255,7 @@ Yes. The admin app is a convenience—you can edit `books/*.json` and `config.js
 
 ### Can I use a different folder for my books?
 
-Yes! Copy `packages/site` to any location, then point the admin app to that folder. This is useful if you want to manage multiple book collections or keep your data separate from the code.
+Yes! Use "Create New Site" to set up a site in any folder, or point to an existing site folder. This is useful for managing multiple book collections.
 
 ### What happens if I delete the dist/ folder?
 
@@ -209,4 +267,17 @@ Yes, through git. Each person clones the repo, makes changes with the admin app,
 
 ### What if I select an invalid folder?
 
-The admin app validates that the folder has required template files (index.html, app.js, CSS). If files are missing, it shows an error with the list of missing files. You'll need to select a valid site folder.
+For "Open Existing Site", the admin validates that the folder has required template files. If files are missing, it shows an error. For "Create New Site", select an empty folder and the admin will set everything up.
+
+### Should I download covers locally?
+
+It's recommended if you want your site to be self-contained and not depend on external image sources. Use "Download All Covers Locally" in Site Config to cache all remote covers. Books that already have local covers are skipped.
+
+### How do template updates work?
+
+The admin app bundles the site template and tracks versions. When a newer template is available:
+1. Go to Site Config → Template Version
+2. Click "Check for Updates"
+3. If update available, click "Update Template"
+
+Only template files are replaced—your books and configuration remain untouched.

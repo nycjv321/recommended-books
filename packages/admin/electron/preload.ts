@@ -90,6 +90,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteCover: (coverPath: string): Promise<void> =>
     ipcRenderer.invoke('delete-cover', coverPath),
 
+  downloadAllCovers: (): Promise<{
+    success: boolean;
+    downloaded: number;
+    skipped: number;
+    failed: number;
+    errors: string[];
+  }> =>
+    ipcRenderer.invoke('download-all-covers'),
+
   // Open Library
   searchOpenLibrary: (query: string): Promise<OpenLibrarySearchResult[]> =>
     ipcRenderer.invoke('search-open-library', query),
@@ -148,4 +157,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   initializeLibrary: (libraryPath: string): Promise<{ success: boolean }> =>
     ipcRenderer.invoke('initialize-library', libraryPath),
+
+  // Template management
+  createNewSite: (targetPath: string): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('create-new-site', targetPath),
+
+  checkTemplateUpdates: (sitePath: string): Promise<{
+    hasUpdate: boolean;
+    currentVersion: string | null;
+    latestVersion: string | null;
+  }> =>
+    ipcRenderer.invoke('check-template-updates', sitePath),
+
+  updateSiteTemplate: (sitePath: string): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('update-site-template', sitePath),
 });

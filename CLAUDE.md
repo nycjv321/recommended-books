@@ -45,11 +45,12 @@ recommended-books/
 │   │       │   └── open-library.ts # getCoverUrl, result transformer
 │   │       └── types/
 │   │           └── index.ts
-│   └── site/                       # Static site
+│   └── site/                       # Static site (also bundled as template)
 │       ├── index.html
 │       ├── app.js
 │       ├── styles-minimalist.css
 │       ├── favicon.svg
+│       ├── template-version.json   # Template version tracking
 │       ├── config.json
 │       ├── scripts/
 │       │   └── build-index.js
@@ -86,6 +87,7 @@ recommended-books/
 | `app.js` | Book loading, rendering, modal logic |
 | `config.json` | Site configuration (titles, labels, shelves) |
 | `favicon.svg` | Book-shaped favicon |
+| `template-version.json` | Template version tracking for updates |
 | `scripts/build-index.js` | Build script for CI/CD |
 | `books/` | Your real book data (source) |
 | `books-sample/` | Sample book data for testing |
@@ -107,8 +109,8 @@ Components → useXRepository() hook → Repository Interface → Implementation
 - `BookRepository` - Book CRUD operations
 - `ShelfRepository` - Shelf creation/deletion
 - `ConfigRepository` - Site configuration
-- `SettingsRepository` - App settings (site folder path, validation, initialization)
-- `CoverRepository` - Cover image operations
+- `SettingsRepository` - App settings (site folder path, validation, initialization, template management)
+- `CoverRepository` - Cover image operations (download single, delete, download all locally)
 - `BuildRepository` - Build site, preview server
 - `OpenLibraryRepository` - External API search
 - `SampleDataRepository` - Sample data load/remove
@@ -143,36 +145,43 @@ render(
 
 ### Site Folder Architecture
 
-The admin app uses a "site folder" architecture where everything lives in one folder:
+The admin app bundles the site template and can create new sites or open existing ones.
 
 ```
-<site-folder>/                    # User selects this folder
-├── index.html                    # Template (required)
-├── app.js                        # Template (required)
-├── styles-minimalist.css         # Template (required)
+<site-folder>/                    # Created by admin or user-selected
+├── index.html                    # Template (from bundled template)
+├── app.js                        # Template (from bundled template)
+├── styles-minimalist.css         # Template (from bundled template)
 ├── favicon.svg                   # Template (optional)
-├── config.json                   # Data (created if missing)
-├── books/                        # Data (created if missing)
+├── template-version.json         # Template version tracking
+├── config.json                   # Data (created by admin)
+├── books/                        # Data (created by admin)
 │   ├── covers/                   # Local cover images
 │   └── <shelf-folder>/           # Book JSON files per shelf
+├── scripts/                      # Build tools (from bundled template)
+│   └── build-index.js
 ├── books-sample/                 # Sample data (optional)
 └── dist/                         # Build output
 ```
 
 **Key concepts:**
-- **Template files**: `index.html`, `app.js`, `styles-*.css` - required, these are the site "engine"
-- **Data files**: `config.json`, `books/` - can be initialized by the admin app
+- **Bundled template**: Admin app includes site template in its resources (packaged mode) or uses `packages/site` (dev mode)
+- **Template files**: `index.html`, `app.js`, `styles-*.css`, `scripts/` - the site "engine"
+- **Data files**: `config.json`, `books/` - user's book data
+- **Template versioning**: `template-version.json` tracks version for update detection
 - **App settings** stored in: `app.getPath('userData')/settings.json` (just the site folder path)
 
 **Workflow:**
-1. On first launch, `SetupWizard` prompts user to select a site folder
-2. Validation checks for required template files (index.html, app.js, CSS)
+1. On first launch, `SetupWizard` offers two options:
+   - **Create New Site**: Select empty folder → admin copies bundled template + initializes data
+   - **Open Existing Site**: Select folder with existing template
+2. For existing sites, validation checks for required template files
 3. If template exists but data files missing, offers to create them
-4. If invalid folder (missing templates), shows error with missing files list
-5. Site folder path can be changed via Site Config page
+4. Site folder path can be changed via Site Config page
+5. Template updates can be applied via Site Config (preserves user data)
 
-**For development**: Point to `packages/site` directly
-**For production**: User copies `packages/site` elsewhere and points to that copy
+**For development**: Point to `packages/site` directly or create a new site
+**For production/packaged app**: Create new site in any folder (template is bundled)
 
 ### IPC Communication
 
@@ -249,6 +258,14 @@ npm run package:win
 npm run package:linux
 ```
 
+### Releases
+
+Releases are fully automated via GitHub Actions:
+
+1. Go to **Actions** → **Release** → **Run workflow**
+2. Select bump type: `patch`, `minor`, or `major`
+3. The workflow bumps version, builds all platforms, and publishes to GitHub Releases
+
 ### Testing Locally
 
 ```bash
@@ -316,10 +333,12 @@ interface SiteValidation {
 - **Vite**: Fast bundler for development
 - **Repository pattern**: Testable data access layer with interface/implementation separation
 - **IPC security**: contextIsolation and preload scripts
-- **Site folder architecture**: Admin points to a site folder containing template + data + dist output
-- **No bundled templates**: Admin doesn't bundle site templates; user points to their site folder
+- **Bundled site template**: Admin bundles site template via `extraResources`, enabling standalone site creation
+- **Template versioning**: `template-version.json` enables detecting and applying template updates
+- **Site folder architecture**: Admin creates/manages a site folder containing template + data + dist output
 - **Folder-based shelves**: Book's shelf determined by folder, not JSON field
 - **Base64 covers in admin**: Cover images converted to data URLs for display in Electron
+- **Local cover caching**: "Download All Covers" feature caches remote images locally for reliability
 - **Pure utilities in lib/**: No data access in lib/ - only constants and pure functions
 - **System fonts + Inter**: Fast loading with modern typography
 
@@ -331,7 +350,7 @@ interface SiteValidation {
 - Don't call `window.electronAPI` directly in components - use repository hooks
 - Don't add data access functions to `lib/` - use repositories instead
 - Don't store `coverLocalResolved` in book JSON - it's a runtime-only field
-- Don't assume admin has bundled templates - it uses the configured site folder
+- Don't manually edit `template-version.json` in user sites - it's managed by template updates
 
 ## Dependencies
 

@@ -1,5 +1,5 @@
 import type { AppSettings } from '@/types';
-import type { SettingsRepository, SiteValidation } from '../interfaces';
+import type { SettingsRepository, SiteValidation, TemplateUpdateInfo } from '../interfaces';
 
 export class ElectronSettingsRepository implements SettingsRepository {
   async get(): Promise<AppSettings> {
@@ -20,5 +20,17 @@ export class ElectronSettingsRepository implements SettingsRepository {
 
   async initializeSiteData(path: string): Promise<{ success: boolean }> {
     return window.electronAPI.initializeLibrary(path);
+  }
+
+  async createNewSite(path: string): Promise<{ success: boolean }> {
+    return window.electronAPI.createNewSite(path);
+  }
+
+  async checkTemplateUpdates(sitePath: string): Promise<TemplateUpdateInfo> {
+    return window.electronAPI.checkTemplateUpdates(sitePath);
+  }
+
+  async updateSiteTemplate(sitePath: string): Promise<{ success: boolean }> {
+    return window.electronAPI.updateSiteTemplate(sitePath);
   }
 }

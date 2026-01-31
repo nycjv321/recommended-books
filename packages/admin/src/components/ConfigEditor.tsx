@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import type { Config } from '@/types';
-import { useConfigRepository, useSettingsRepository } from '@/repositories';
-import type { SiteValidation } from '@/repositories/interfaces';
+import { useConfigRepository, useSettingsRepository, useCoverRepository } from '@/repositories';
+import type { SiteValidation, TemplateUpdateInfo, DownloadAllCoversResult } from '@/repositories/interfaces';
 
 export default function ConfigEditor() {
   const configRepo = useConfigRepository();
   const settingsRepo = useSettingsRepository();
+  const coverRepo = useCoverRepository();
 
   const [config, setConfig] = useState<Config | null>(null);
   const [sitePath, setSitePathState] = useState<string | null>(null);
@@ -21,6 +22,12 @@ export default function ConfigEditor() {
   const [changingSite, setChangingSite] = useState(false);
   const [pendingSitePath, setPendingSitePath] = useState<string | null>(null);
   const [pendingValidation, setPendingValidation] = useState<SiteValidation | null>(null);
+  const [templateInfo, setTemplateInfo] = useState<TemplateUpdateInfo | null>(null);
+  const [checkingUpdates, setCheckingUpdates] = useState(false);
+  const [updatingTemplate, setUpdatingTemplate] = useState(false);
+  const [showUpdateConfirm, setShowUpdateConfirm] = useState(false);
+  const [downloadingCovers, setDownloadingCovers] = useState(false);
+  const [coverDownloadResult, setCoverDownloadResult] = useState<DownloadAllCoversResult | null>(null);
 
   useEffect(() => {
     async function loadConfig() {
@@ -36,6 +43,12 @@ export default function ConfigEditor() {
           siteSubtitle: configData.siteSubtitle,
           footerText: configData.footerText
         });
+
+        // Check template version
+        if (settings.libraryPath) {
+          const updateInfo = await settingsRepo.checkTemplateUpdates(settings.libraryPath);
+          setTemplateInfo(updateInfo);
+        }
       } catch (err) {
         setError('Failed to load configuration');
       } finally {
@@ -44,6 +57,56 @@ export default function ConfigEditor() {
     }
     loadConfig();
   }, [configRepo, settingsRepo]);
+
+  async function handleCheckTemplateUpdates() {
+    if (!sitePath) return;
+
+    setCheckingUpdates(true);
+    setError('');
+
+    try {
+      const updateInfo = await settingsRepo.checkTemplateUpdates(sitePath);
+      setTemplateInfo(updateInfo);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to check for template updates');
+    } finally {
+      setCheckingUpdates(false);
+    }
+  }
+
+  async function handleUpdateTemplate() {
+    if (!sitePath) return;
+
+    setUpdatingTemplate(true);
+    setError('');
+
+    try {
+      await settingsRepo.updateSiteTemplate(sitePath);
+      // Re-check to get new version info
+      const updateInfo = await settingsRepo.checkTemplateUpdates(sitePath);
+      setTemplateInfo(updateInfo);
+      setShowUpdateConfirm(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update template');
+    } finally {
+      setUpdatingTemplate(false);
+    }
+  }
+
+  async function handleDownloadAllCovers() {
+    setDownloadingCovers(true);
+    setError('');
+    setCoverDownloadResult(null);
+
+    try {
+      const result = await coverRepo.downloadAll();
+      setCoverDownloadResult(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to download covers');
+    } finally {
+      setDownloadingCovers(false);
+    }
+  }
 
   async function handleChangeSitePath() {
     setChangingSite(true);
@@ -274,6 +337,145 @@ export default function ConfigEditor() {
         </div>
         <p className="form-hint">
           Changing the site folder will reload the app.
+        </p>
+      </div>
+
+      <div className="card" style={{ marginBottom: '24px' }}>
+        <h2 className="card-title" style={{ marginBottom: '16px' }}>Template Version</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '12px' }}>
+          <div>
+            <div className="library-path-label">Current version</div>
+            <div className="library-path-value" style={{ fontSize: '14px' }}>
+              {templateInfo?.currentVersion || (
+                <span style={{ color: 'var(--color-text-secondary)' }}>
+                  Pre-versioning
+                </span>
+              )}
+            </div>
+          </div>
+          {templateInfo?.hasUpdate && (
+            <div style={{
+              background: 'var(--color-primary)',
+              color: 'white',
+              padding: '4px 8px',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: '12px',
+              fontWeight: 500
+            }}>
+              {templateInfo.currentVersion
+                ? `Update available: ${templateInfo.latestVersion}`
+                : `Version ${templateInfo.latestVersion} available`}
+            </div>
+          )}
+        </div>
+
+        {showUpdateConfirm ? (
+          <div style={{
+            background: 'var(--color-bg)',
+            padding: '12px',
+            borderRadius: 'var(--radius-md)',
+            marginBottom: '12px'
+          }}>
+            <p style={{ marginBottom: '12px', fontSize: '13px' }}>
+              This will update the template files (index.html, app.js, styles, scripts).
+              Your books and configuration will not be affected.
+            </p>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleUpdateTemplate}
+                disabled={updatingTemplate}
+              >
+                {updatingTemplate ? 'Updating...' : 'Confirm Update'}
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setShowUpdateConfirm(false)}
+                disabled={updatingTemplate}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={handleCheckTemplateUpdates}
+              disabled={checkingUpdates}
+            >
+              {checkingUpdates ? 'Checking...' : 'Check for Updates'}
+            </button>
+            {templateInfo?.hasUpdate && (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => setShowUpdateConfirm(true)}
+              >
+                Update Template
+              </button>
+            )}
+          </div>
+        )}
+        <p className="form-hint" style={{ marginTop: '8px' }}>
+          Template updates include improvements to the site engine (HTML, CSS, JS).
+        </p>
+      </div>
+
+      <div className="card" style={{ marginBottom: '24px' }}>
+        <h2 className="card-title" style={{ marginBottom: '16px' }}>Cover Images</h2>
+        <p style={{ marginBottom: '12px', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+          Download all book covers locally to avoid relying on external image sources.
+          This will download covers from URLs and store them in the <code>books/covers/</code> folder.
+        </p>
+
+        {coverDownloadResult && (
+          <div style={{
+            background: coverDownloadResult.success ? 'var(--color-success-bg, #f0fdf4)' : 'var(--color-warning-bg, #fffbeb)',
+            border: `1px solid ${coverDownloadResult.success ? 'var(--color-success, #22c55e)' : 'var(--color-warning, #f59e0b)'}`,
+            padding: '12px',
+            borderRadius: 'var(--radius-md)',
+            marginBottom: '12px',
+            fontSize: '13px'
+          }}>
+            <div style={{ marginBottom: '8px' }}>
+              <strong>Download complete:</strong>
+            </div>
+            <ul style={{ margin: 0, paddingLeft: '20px' }}>
+              <li>{coverDownloadResult.downloaded} cover{coverDownloadResult.downloaded !== 1 ? 's' : ''} downloaded</li>
+              <li>{coverDownloadResult.skipped} book{coverDownloadResult.skipped !== 1 ? 's' : ''} skipped (already local or no cover)</li>
+              {coverDownloadResult.failed > 0 && (
+                <li style={{ color: 'var(--color-danger)' }}>
+                  {coverDownloadResult.failed} failed
+                </li>
+              )}
+            </ul>
+            {coverDownloadResult.errors.length > 0 && (
+              <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                <strong>Errors:</strong>
+                <ul style={{ margin: '4px 0 0', paddingLeft: '20px' }}>
+                  {coverDownloadResult.errors.map((err, i) => (
+                    <li key={i}>{err}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={handleDownloadAllCovers}
+          disabled={downloadingCovers}
+        >
+          {downloadingCovers ? 'Downloading...' : 'Download All Covers Locally'}
+        </button>
+        <p className="form-hint" style={{ marginTop: '8px' }}>
+          Books with existing local covers will be skipped. Book JSON files will be updated with the local cover path.
         </p>
       </div>
 
