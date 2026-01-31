@@ -1,5 +1,5 @@
 import type { AppSettings } from '@/types';
-import type { SettingsRepository, LibraryValidation } from '../interfaces';
+import type { SettingsRepository, SiteValidation } from '../interfaces';
 
 export class ElectronSettingsRepository implements SettingsRepository {
   async get(): Promise<AppSettings> {
@@ -10,15 +10,15 @@ export class ElectronSettingsRepository implements SettingsRepository {
     return window.electronAPI.saveSettings(settings);
   }
 
-  async selectLibraryPath(): Promise<string | null> {
+  async selectSitePath(): Promise<string | null> {
     return window.electronAPI.selectLibraryPath();
   }
 
-  async validateLibraryPath(path: string): Promise<LibraryValidation> {
+  async validateSitePath(path: string): Promise<SiteValidation> {
     return window.electronAPI.validateLibraryPath(path);
   }
 
-  async initializeLibrary(path: string): Promise<{ success: boolean }> {
+  async initializeSiteData(path: string): Promise<{ success: boolean }> {
     return window.electronAPI.initializeLibrary(path);
   }
 }

@@ -137,8 +137,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   selectLibraryPath: (): Promise<string | null> =>
     ipcRenderer.invoke('select-library-path'),
 
-  validateLibraryPath: (libraryPath: string): Promise<{ isValid: boolean; isEmpty: boolean }> =>
-    ipcRenderer.invoke('validate-library-path', libraryPath),
+  validateLibraryPath: (sitePath: string): Promise<{
+    isValid: boolean;
+    hasTemplateFiles: boolean;
+    hasConfig: boolean;
+    hasBooks: boolean;
+    missingFiles: string[];
+  }> =>
+    ipcRenderer.invoke('validate-library-path', sitePath),
 
   initializeLibrary: (libraryPath: string): Promise<{ success: boolean }> =>
     ipcRenderer.invoke('initialize-library', libraryPath),

@@ -1,23 +1,25 @@
 import { useState } from 'react';
 import { useSettingsRepository } from '@/repositories';
+import type { SiteValidation } from '@/repositories/interfaces';
 
 interface SetupWizardProps {
   onComplete: () => void;
 }
 
-type WizardStep = 'welcome' | 'select' | 'confirm-new';
+type WizardStep = 'welcome' | 'invalid-site' | 'initialize-data';
 
 export default function SetupWizard({ onComplete }: SetupWizardProps) {
   const settingsRepo = useSettingsRepository();
 
   const [step, setStep] = useState<WizardStep>('welcome');
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const [validation, setValidation] = useState<SiteValidation | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function handleSelectFolder() {
     setError(null);
-    const path = await settingsRepo.selectLibraryPath();
+    const path = await settingsRepo.selectSitePath();
 
     if (!path) {
       return; // User cancelled
@@ -27,15 +29,19 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
     setLoading(true);
 
     try {
-      const validation = await settingsRepo.validateLibraryPath(path);
+      const result = await settingsRepo.validateSitePath(path);
+      setValidation(result);
 
-      if (validation.isValid) {
-        // Valid library found, save and complete
+      if (!result.isValid) {
+        // Missing template files - not a valid site folder
+        setStep('invalid-site');
+      } else if (!result.hasConfig || !result.hasBooks) {
+        // Valid site but missing data files - offer to initialize
+        setStep('initialize-data');
+      } else {
+        // Fully valid site, save and complete
         await settingsRepo.save({ libraryPath: path });
         onComplete();
-      } else {
-        // Empty folder, ask user what to do
-        setStep('confirm-new');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to validate folder');
@@ -44,18 +50,18 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
     }
   }
 
-  async function handleCreateNewLibrary() {
+  async function handleInitializeData() {
     if (!selectedPath) return;
 
     setLoading(true);
     setError(null);
 
     try {
-      await settingsRepo.initializeLibrary(selectedPath);
+      await settingsRepo.initializeSiteData(selectedPath);
       await settingsRepo.save({ libraryPath: selectedPath });
       onComplete();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create library');
+      setError(err instanceof Error ? err.message : 'Failed to initialize site data');
     } finally {
       setLoading(false);
     }
@@ -63,6 +69,7 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
 
   function handleChooseDifferent() {
     setSelectedPath(null);
+    setValidation(null);
     setStep('welcome');
   }
 
@@ -78,7 +85,48 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
     );
   }
 
-  if (step === 'confirm-new') {
+  if (step === 'invalid-site') {
+    return (
+      <div className="setup-wizard">
+        <div className="setup-wizard-content">
+          <div className="setup-wizard-icon" style={{ color: 'var(--color-danger)' }}>
+            <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h1 className="setup-wizard-title">Not a Valid Site Folder</h1>
+          <p className="setup-wizard-subtitle">
+            The selected folder is missing required template files. Please select a folder containing
+            the site template (e.g., <code>packages/site</code> from the repo).
+          </p>
+          <div className="setup-wizard-path">
+            {selectedPath}
+          </div>
+
+          {validation?.missingFiles && validation.missingFiles.length > 0 && (
+            <div style={{ marginTop: '16px', textAlign: 'left', background: 'var(--color-bg)', padding: '12px', borderRadius: 'var(--radius-md)' }}>
+              <strong style={{ fontSize: '13px' }}>Missing files:</strong>
+              <ul style={{ margin: '8px 0 0', paddingLeft: '20px', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                {validation.missingFiles.map((file) => (
+                  <li key={file}>{file}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {error && <div className="alert alert-error">{error}</div>}
+
+          <div className="setup-wizard-actions">
+            <button className="btn btn-primary" onClick={handleChooseDifferent}>
+              Choose Different Folder
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 'initialize-data') {
     return (
       <div className="setup-wizard">
         <div className="setup-wizard-content">
@@ -87,19 +135,28 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
             </svg>
           </div>
-          <h1 className="setup-wizard-title">Create New Library?</h1>
+          <h1 className="setup-wizard-title">Initialize Site Data?</h1>
           <p className="setup-wizard-subtitle">
-            The selected folder doesn't contain a book library.
+            This site folder has the template files but is missing some data files.
+            Would you like to create them?
           </p>
           <div className="setup-wizard-path">
             {selectedPath}
           </div>
 
+          <div style={{ marginTop: '16px', textAlign: 'left', background: 'var(--color-bg)', padding: '12px', borderRadius: 'var(--radius-md)', fontSize: '13px' }}>
+            <strong>Will create:</strong>
+            <ul style={{ margin: '8px 0 0', paddingLeft: '20px', color: 'var(--color-text-secondary)' }}>
+              {!validation?.hasConfig && <li>config.json (site configuration)</li>}
+              {!validation?.hasBooks && <li>books/ folder (for your book data)</li>}
+            </ul>
+          </div>
+
           {error && <div className="alert alert-error">{error}</div>}
 
           <div className="setup-wizard-actions">
-            <button className="btn btn-primary" onClick={handleCreateNewLibrary}>
-              Create New Library
+            <button className="btn btn-primary" onClick={handleInitializeData}>
+              Initialize Data
             </button>
             <button className="btn btn-secondary" onClick={handleChooseDifferent}>
               Choose Different Folder
@@ -120,7 +177,8 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
         </div>
         <h1 className="setup-wizard-title">Welcome to Book Admin</h1>
         <p className="setup-wizard-subtitle">
-          To get started, select a folder to store your book library. This can be an existing library or a new empty folder.
+          To get started, select your site folder. This should be a folder containing
+          the site template (e.g., <code>packages/site</code> from the repo).
         </p>
 
         {error && <div className="alert alert-error">{error}</div>}
@@ -130,7 +188,7 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
             <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
             </svg>
-            Select Library Folder
+            Select Site Folder
           </button>
         </div>
       </div>

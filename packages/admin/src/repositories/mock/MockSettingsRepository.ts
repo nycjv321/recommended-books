@@ -1,12 +1,12 @@
 import type { AppSettings } from '@/types';
-import type { SettingsRepository, LibraryValidation } from '../interfaces';
+import type { SettingsRepository, SiteValidation } from '../interfaces';
 
 export class MockSettingsRepository implements SettingsRepository {
   private settings: AppSettings = {
-    libraryPath: '/mock/library',
+    libraryPath: '/mock/site',
   };
 
-  private validPaths: Set<string> = new Set(['/mock/library']);
+  private validPaths: Set<string> = new Set(['/mock/site']);
   private selectedPath: string | null = null;
 
   setSettings(settings: AppSettings): void {
@@ -29,16 +29,22 @@ export class MockSettingsRepository implements SettingsRepository {
     this.settings = { ...settings };
   }
 
-  async selectLibraryPath(): Promise<string | null> {
+  async selectSitePath(): Promise<string | null> {
     return this.selectedPath;
   }
 
-  async validateLibraryPath(path: string): Promise<LibraryValidation> {
+  async validateSitePath(path: string): Promise<SiteValidation> {
     const isValid = this.validPaths.has(path);
-    return { isValid, isEmpty: !isValid };
+    return {
+      isValid,
+      hasTemplateFiles: isValid,
+      hasConfig: isValid,
+      hasBooks: isValid,
+      missingFiles: isValid ? [] : ['index.html', 'app.js', 'styles-*.css'],
+    };
   }
 
-  async initializeLibrary(_path: string): Promise<{ success: boolean }> {
+  async initializeSiteData(_path: string): Promise<{ success: boolean }> {
     return { success: true };
   }
 }

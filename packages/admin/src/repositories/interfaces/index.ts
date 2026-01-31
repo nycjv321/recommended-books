@@ -10,7 +10,7 @@ import type { SampleDataRepository } from './SampleDataRepository';
 export type { BookRepository } from './BookRepository';
 export type { ShelfRepository } from './ShelfRepository';
 export type { ConfigRepository } from './ConfigRepository';
-export type { SettingsRepository, LibraryValidation } from './SettingsRepository';
+export type { SettingsRepository, SiteValidation } from './SettingsRepository';
 export type { CoverRepository } from './CoverRepository';
 export type { BuildRepository, BuildResult, PreviewServer } from './BuildRepository';
 export type { OpenLibraryRepository } from './OpenLibraryRepository';

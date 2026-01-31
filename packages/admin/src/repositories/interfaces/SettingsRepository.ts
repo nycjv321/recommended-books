@@ -1,14 +1,17 @@
 import type { AppSettings } from '@/types';
 
-export interface LibraryValidation {
+export interface SiteValidation {
   isValid: boolean;
-  isEmpty: boolean;
+  hasTemplateFiles: boolean;
+  hasConfig: boolean;
+  hasBooks: boolean;
+  missingFiles: string[];
 }
 
 export interface SettingsRepository {
   get(): Promise<AppSettings>;
   save(settings: AppSettings): Promise<void>;
-  selectLibraryPath(): Promise<string | null>;
-  validateLibraryPath(path: string): Promise<LibraryValidation>;
-  initializeLibrary(path: string): Promise<{ success: boolean }>;
+  selectSitePath(): Promise<string | null>;
+  validateSitePath(path: string): Promise<SiteValidation>;
+  initializeSiteData(path: string): Promise<{ success: boolean }>;
 }

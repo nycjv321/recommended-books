@@ -17,6 +17,7 @@ export interface BookWithMeta extends Book {
   fileName: string;
   shelfId: string;
   shelfLabel: string;
+  coverLocalResolved?: string;
 }
 
 // Shelf types

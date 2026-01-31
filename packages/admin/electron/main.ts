@@ -34,36 +34,27 @@ function saveSettings(settings: AppSettings): void {
 }
 
 // ============================================
-// Dynamic Path Functions (use configured library path)
+// Dynamic Path Functions (use configured site path)
 // ============================================
 
-function getLibraryPath(): string {
+function getSitePath(): string {
   const settings = loadSettings();
   if (!settings.libraryPath) {
-    throw new Error('Library path not configured');
+    throw new Error('Site path not configured');
   }
   return settings.libraryPath;
 }
 
-function getSitePath(): string {
-  return getLibraryPath();
-}
-
 function getBooksPath(): string {
-  return path.join(getLibraryPath(), 'books');
+  return path.join(getSitePath(), 'books');
 }
 
 function getDistPath(): string {
-  return path.join(getLibraryPath(), 'dist');
+  return path.join(getSitePath(), 'dist');
 }
 
 function getConfigPath(): string {
-  return path.join(getLibraryPath(), 'config.json');
-}
-
-// For sample data, we still need the bundled path
-function getBundledSitePath(): string {
-  return path.join(__dirname, '..', '..', 'site');
+  return path.join(getSitePath(), 'config.json');
 }
 
 // Types (duplicated from renderer for main process use)
@@ -98,6 +89,7 @@ interface BookWithMeta extends Book {
   fileName: string;
   shelfId: string;
   shelfLabel: string;
+  coverLocalResolved?: string;
 }
 
 // Preview server instance
@@ -189,8 +181,34 @@ ipcMain.handle('get-books', async (): Promise<BookWithMeta[]> => {
       try {
         const content = fs.readFileSync(filePath, 'utf-8');
         const book: Book = JSON.parse(content);
+
+        // Resolve coverLocal to base64 data URL for Electron display
+        let coverLocalResolved: string | undefined;
+        if (book.coverLocal) {
+          const absoluteCoverPath = path.join(booksPath, book.coverLocal);
+          if (fs.existsSync(absoluteCoverPath)) {
+            try {
+              const imageData = fs.readFileSync(absoluteCoverPath);
+              const base64 = imageData.toString('base64');
+              const ext = path.extname(absoluteCoverPath).toLowerCase();
+              const mimeTypes: Record<string, string> = {
+                '.jpg': 'image/jpeg',
+                '.jpeg': 'image/jpeg',
+                '.png': 'image/png',
+                '.gif': 'image/gif',
+                '.webp': 'image/webp',
+              };
+              const mimeType = mimeTypes[ext] || 'image/jpeg';
+              coverLocalResolved = `data:${mimeType};base64,${base64}`;
+            } catch {
+              // Keep undefined if read fails
+            }
+          }
+        }
+
         books.push({
           ...book,
+          coverLocalResolved,
           filePath,
           fileName,
           shelfId: shelf.id,
@@ -205,9 +223,36 @@ ipcMain.handle('get-books', async (): Promise<BookWithMeta[]> => {
   return books;
 });
 
-ipcMain.handle('get-book', async (_event, filePath: string): Promise<Book> => {
+ipcMain.handle('get-book', async (_event, filePath: string): Promise<Book & { coverLocalResolved?: string }> => {
   const content = fs.readFileSync(filePath, 'utf-8');
-  return JSON.parse(content);
+  const book: Book = JSON.parse(content);
+
+  // Resolve coverLocal to base64 data URL for Electron display
+  let coverLocalResolved: string | undefined;
+  if (book.coverLocal) {
+    const booksPath = getBooksPath();
+    const absoluteCoverPath = path.join(booksPath, book.coverLocal);
+    if (fs.existsSync(absoluteCoverPath)) {
+      try {
+        const imageData = fs.readFileSync(absoluteCoverPath);
+        const base64 = imageData.toString('base64');
+        const ext = path.extname(absoluteCoverPath).toLowerCase();
+        const mimeTypes: Record<string, string> = {
+          '.jpg': 'image/jpeg',
+          '.jpeg': 'image/jpeg',
+          '.png': 'image/png',
+          '.gif': 'image/gif',
+          '.webp': 'image/webp',
+        };
+        const mimeType = mimeTypes[ext] || 'image/jpeg';
+        coverLocalResolved = `data:${mimeType};base64,${base64}`;
+      } catch {
+        // Keep undefined if read fails
+      }
+    }
+  }
+
+  return { ...book, coverLocalResolved };
 });
 
 ipcMain.handle('save-book', async (_event, shelfId: string, fileName: string, book: Book): Promise<string> => {
@@ -225,8 +270,11 @@ ipcMain.handle('save-book', async (_event, shelfId: string, fileName: string, bo
     fs.mkdirSync(shelfPath, { recursive: true });
   }
 
+  // Remove coverLocalResolved before saving (it's a runtime-only field)
+  const { coverLocalResolved, ...bookToSave } = book as Book & { coverLocalResolved?: string };
+
   const filePath = path.join(shelfPath, fileName);
-  fs.writeFileSync(filePath, JSON.stringify(book, null, 2) + '\n');
+  fs.writeFileSync(filePath, JSON.stringify(bookToSave, null, 2) + '\n');
 
   return filePath;
 });
@@ -337,7 +385,7 @@ ipcMain.handle('download-cover', async (_event, url: string, fileName: string): 
 });
 
 ipcMain.handle('delete-cover', async (_event, coverPath: string): Promise<void> => {
-  const fullPath = path.join(getLibraryPath(), coverPath);
+  const fullPath = path.join(getSitePath(), coverPath);
   if (fs.existsSync(fullPath)) {
     fs.unlinkSync(fullPath);
   }
@@ -383,13 +431,12 @@ ipcMain.handle('search-open-library', async (_event, query: string): Promise<Ope
 
 ipcMain.handle('build-site', async (_event, useSampleData: boolean = false): Promise<{ success: boolean; message: string }> => {
   try {
-    const libraryPath = getLibraryPath();
-    const bundledSitePath = getBundledSitePath();
+    const sitePath = getSitePath();
     const distDir = getDistPath();
     const configPath = getConfigPath();
     const sourceDir = useSampleData
-      ? path.join(bundledSitePath, 'books-sample')
-      : path.join(libraryPath, 'books');
+      ? path.join(sitePath, 'books-sample')
+      : path.join(sitePath, 'books');
 
     // Load config
     const config: Config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
@@ -400,19 +447,19 @@ ipcMain.handle('build-site', async (_event, useSampleData: boolean = false): Pro
     }
     fs.mkdirSync(distDir, { recursive: true });
 
-    // Static files to copy (from bundled site)
+    // Static files to copy (from site folder)
     const staticFiles = ['styles-minimalist.css', 'app.js', 'favicon.svg'];
 
     for (const file of staticFiles) {
-      const srcPath = path.join(bundledSitePath, file);
+      const srcPath = path.join(sitePath, file);
       const destPath = path.join(distDir, file);
       if (fs.existsSync(srcPath)) {
         fs.copyFileSync(srcPath, destPath);
       }
     }
 
-    // Process index.html with placeholders (from bundled site)
-    const indexSrc = path.join(bundledSitePath, 'index.html');
+    // Process index.html with placeholders (from site folder)
+    const indexSrc = path.join(sitePath, 'index.html');
     if (fs.existsSync(indexSrc)) {
       let content = fs.readFileSync(indexSrc, 'utf-8');
       content = content
@@ -604,33 +651,70 @@ ipcMain.handle('save-settings', async (_event, settings: AppSettings): Promise<v
 
 ipcMain.handle('select-library-path', async (): Promise<string | null> => {
   const result = await dialog.showOpenDialog({
-    properties: ['openDirectory', 'createDirectory'],
-    title: 'Select Book Library Folder'
+    properties: ['openDirectory'],
+    title: 'Select Site Folder'
   });
   return result.canceled ? null : result.filePaths[0];
 });
 
-ipcMain.handle('validate-library-path', async (_event, libraryPath: string): Promise<{ isValid: boolean; isEmpty: boolean }> => {
-  const configPath = path.join(libraryPath, 'config.json');
-  const hasConfig = fs.existsSync(configPath);
-  return { isValid: hasConfig, isEmpty: !hasConfig };
+interface SiteValidation {
+  isValid: boolean;
+  hasTemplateFiles: boolean;
+  hasConfig: boolean;
+  hasBooks: boolean;
+  missingFiles: string[];
+}
+
+ipcMain.handle('validate-library-path', async (_event, sitePath: string): Promise<SiteValidation> => {
+  const requiredTemplateFiles = ['index.html', 'app.js'];
+  const missingFiles: string[] = [];
+
+  // Check for required template files
+  for (const file of requiredTemplateFiles) {
+    if (!fs.existsSync(path.join(sitePath, file))) {
+      missingFiles.push(file);
+    }
+  }
+
+  // Check for CSS file (styles-minimalist.css or similar)
+  const files = fs.existsSync(sitePath) ? fs.readdirSync(sitePath) : [];
+  const hasCss = files.some(f => f.startsWith('styles') && f.endsWith('.css'));
+  if (!hasCss) {
+    missingFiles.push('styles-*.css');
+  }
+
+  const hasTemplateFiles = missingFiles.length === 0;
+  const hasConfig = fs.existsSync(path.join(sitePath, 'config.json'));
+  const hasBooks = fs.existsSync(path.join(sitePath, 'books'));
+
+  return {
+    isValid: hasTemplateFiles,
+    hasTemplateFiles,
+    hasConfig,
+    hasBooks,
+    missingFiles
+  };
 });
 
-ipcMain.handle('initialize-library', async (_event, libraryPath: string): Promise<{ success: boolean }> => {
-  const configPath = path.join(libraryPath, 'config.json');
-  const booksPath = path.join(libraryPath, 'books');
+ipcMain.handle('initialize-library', async (_event, sitePath: string): Promise<{ success: boolean }> => {
+  const configPath = path.join(sitePath, 'config.json');
+  const booksPath = path.join(sitePath, 'books');
 
-  // Create books directory
-  fs.mkdirSync(booksPath, { recursive: true });
+  // Only create config.json if it doesn't exist
+  if (!fs.existsSync(configPath)) {
+    const defaultConfig = {
+      siteTitle: 'My Reads',
+      siteSubtitle: 'Personal book recommendations',
+      footerText: '',
+      shelves: []
+    };
+    fs.writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2));
+  }
 
-  // Create default config
-  const defaultConfig = {
-    siteTitle: 'My Reads',
-    siteSubtitle: 'Personal book recommendations',
-    footerText: '',
-    shelves: []
-  };
-  fs.writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2));
+  // Only create books directory if it doesn't exist
+  if (!fs.existsSync(booksPath)) {
+    fs.mkdirSync(booksPath, { recursive: true });
+  }
 
   return { success: true };
 });
@@ -663,7 +747,7 @@ ipcMain.handle('check-existing-books', async (): Promise<{ count: number }> => {
 ipcMain.handle('load-sample-data', async (): Promise<{ success: boolean; message: string; booksLoaded: number }> => {
   try {
     const booksPath = getBooksPath();
-    const samplePath = path.join(getBundledSitePath(), 'books-sample');
+    const samplePath = path.join(getSitePath(), 'books-sample');
     const configPath = getConfigPath();
 
     // Check if sample data exists
@@ -732,7 +816,7 @@ ipcMain.handle('load-sample-data', async (): Promise<{ success: boolean; message
 ipcMain.handle('remove-sample-data', async (): Promise<{ success: boolean; message: string; booksRemoved: number }> => {
   try {
     const booksPath = getBooksPath();
-    const samplePath = path.join(getBundledSitePath(), 'books-sample');
+    const samplePath = path.join(getSitePath(), 'books-sample');
 
     // Check if sample data folder exists
     if (!fs.existsSync(samplePath)) {

@@ -31,6 +31,7 @@ export default function BookForm({ book, shelves, onClose, onSave }: BookFormPro
   const [selectedShelf, setSelectedShelf] = useState(book?.shelfId || shelves[0]?.id || '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | undefined>(book?.coverLocalResolved);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -52,6 +53,7 @@ export default function BookForm({ book, shelves, onClose, onSave }: BookFormPro
         clickBehavior: book.clickBehavior
       });
       setSelectedShelf(book.shelfId);
+      setCoverPreviewUrl(book.coverLocalResolved);
     }
   }, [book]);
 
@@ -337,9 +339,9 @@ export default function BookForm({ book, shelves, onClose, onSave }: BookFormPro
 
               <div style={{ width: '140px' }}>
                 <label className="form-label" style={{ marginBottom: '8px', display: 'block' }}>Preview</label>
-                {formData.cover ? (
+                {formData.cover || coverPreviewUrl ? (
                   <img
-                    src={formData.coverLocal || formData.cover}
+                    src={coverPreviewUrl || formData.cover}
                     alt="Cover preview"
                     className="cover-preview"
                     onError={(e) => {

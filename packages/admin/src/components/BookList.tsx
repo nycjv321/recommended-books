@@ -248,9 +248,9 @@ export default function BookList() {
                   }}
                 />
                 <div onClick={() => setEditingBook(book)}>
-                  {book.cover || book.coverLocal ? (
+                  {book.cover || book.coverLocal || book.coverLocalResolved ? (
                     <img
-                      src={book.coverLocal || book.cover}
+                      src={book.coverLocalResolved || book.cover}
                       alt={book.title}
                       className="book-cover"
                       onError={(e) => {
@@ -259,7 +259,7 @@ export default function BookList() {
                       }}
                     />
                   ) : null}
-                  <div className={`book-cover-placeholder ${book.cover || book.coverLocal ? 'hidden' : ''}`}>
+                  <div className={`book-cover-placeholder ${book.cover || book.coverLocal || book.coverLocalResolved ? 'hidden' : ''}`}>
                     {book.title}
                   </div>
                   <div className="book-info">

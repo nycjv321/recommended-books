@@ -500,19 +500,24 @@ body {
     }
 }
 
-/* 2 columns on mobile */
+/* 3 columns on mobile */
 @media (max-width: 480px) {
     .header {
         padding: 2.5rem 1rem 1.5rem;
     }
 
     .bookshelf-container {
-        padding: 1.5rem 1rem;
+        padding: 1.5rem 0.75rem;
     }
 
     .books-container {
-        grid-template-columns: repeat(auto-fit, 130px);
-        gap: 1rem;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.75rem;
+        row-gap: 3rem;
+    }
+
+    .book-cover {
+        border-radius: 6px;
     }
 
 
